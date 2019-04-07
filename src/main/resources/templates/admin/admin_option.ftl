@@ -579,18 +579,12 @@
 
                   <!-- 七牛云 -->
                   <div class="qiniu-options" style="display: none">
-                  <#--<div class="form-group">-->
-                  <#--<label for="qiniuZone" class="col-lg-2 col-sm-4 control-label"><@spring.message code='admin.setting.form.qiniu-zone' /></label>-->
-                  <#--<div class="col-lg-4 col-sm-8">-->
-                  <#--<input type="text" class="form-control" id="qiniuDomain" name="qiniu_zone" value="${options.qiniu_zone!}">-->
-                  <#--</div>-->
-                  <#--</div>  -->
                     <div class="form-group">
-                      <label for="qiniuDomain"
-                             class="col-lg-2 col-sm-4 control-label"><@spring.message code='admin.setting.form.qiniu-domain' /></label>
+                      <label for="qiniuPrefix"
+                             class="col-lg-2 col-sm-4 control-label"><@spring.message code='admin.setting.form.qiniu-prefix' /></label>
                       <div class="col-lg-4 col-sm-8">
-                        <input type="text" class="form-control" id="qiniuDomain" name="qiniu_domain"
-                               value="${options.qiniu_domain!}">
+                        <input type="text" class="form-control" id="qiniuPrefix" name="qiniu_zone"
+                               value="${options.qiniu_prefix!}">
                       </div>
                     </div>
                     <div class="form-group">

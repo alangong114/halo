@@ -269,7 +269,11 @@ public class AttachmentServiceImpl extends AbstractCrudService<Attachment, Long>
 //                .recorder(null, null)  // keyGen 分片上传时，生成标识符，用于片记录器区分是那个文件的上传记录
 //                .zone(Zone.autoZone()) // 设置区域，指定不同区域的上传域名、备用域名、备用IP。
 //                .build();
-      final String key = Md5Util.getMD5Checksum(file);
+      String suffix = file.getOriginalFilename()
+          .substring(file.getOriginalFilename().lastIndexOf("."));
+      final String prefix = OPTIONS.get("qiniu_prefix");
+      final String key =
+          prefix == null ? "" : (prefix + "/") + Md5Util.getMD5Checksum(file) + suffix;
       final String accessKey = OPTIONS.get("qiniu_access_key");
       final String secretKey = OPTIONS.get("qiniu_secret_key");
       final String domain = OPTIONS.get("qiniu_domain");
