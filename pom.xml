@@ -28,6 +28,8 @@
 	</parent>
 
 	<properties>
+		<docker.image.prefix>blog</docker.image.prefix>
+
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
@@ -36,7 +38,8 @@
 		<ehcache.version>3.6.3</ehcache.version>
 		<hutool.version>4.4.2</hutool.version>
 		<upyun-java-sdk.version>4.0.1</upyun-java-sdk.version>
-		<qiniu-java-sdk.version>7.2.18</qiniu-java-sdk.version>
+		<!--<qiniu-java-sdk.version>7.2.18</qiniu-java-sdk.version>-->
+		<qiniu-java-sdk.version>[7.2.0, 7.2.99]</qiniu-java-sdk.version>
 		<thumbnailator.version>0.4.8</thumbnailator.version>
 		<commonmark.version>0.12.1</commonmark.version>
 		<commons-collections.version>3.2.2</commons-collections.version>
@@ -265,6 +268,22 @@
 							</execution>
 						</executions>
 					</plugin>
+					<!--<plugin>-->
+						<!--<groupId>com.spotify</groupId>-->
+						<!--<artifactId>docker-maven-plugin</artifactId>-->
+						<!--<version>1.0.0</version>-->
+						<!--<configuration>-->
+							<!--<imageName>${docker.image.prefix}/${project.artifactId}</imageName>-->
+							<!--<dockerDirectory></dockerDirectory>-->
+							<!--<resources>-->
+								<!--<resource>-->
+									<!--<targetPath>/</targetPath>-->
+									<!--<directory>${project.build.directory}</directory>-->
+									<!--<include>${project.build.finalName}.jar</include>-->
+								<!--</resource>-->
+							<!--</resources>-->
+						<!--</configuration>-->
+					<!--</plugin>-->
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-jar-plugin</artifactId>

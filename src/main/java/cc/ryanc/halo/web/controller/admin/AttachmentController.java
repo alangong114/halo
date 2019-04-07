@@ -194,6 +194,9 @@ public class AttachmentController {
                 } else if (attachLocation.equals(QINIU.getDesc())) {
                     String key = attachPath.substring(attachPath.lastIndexOf("/") + 1);
                     flag = attachmentService.deleteQiNiuAttachment(key);
+                    if(!flag) {
+                        attachmentService.removeById(attachId);
+                    }
                 } else if (attachLocation.equals(UPYUN.getDesc())) {
                     String fileName = attachPath.substring(attachPath.lastIndexOf("/") + 1);
                     flag = attachmentService.deleteUpYunAttachment(fileName);
