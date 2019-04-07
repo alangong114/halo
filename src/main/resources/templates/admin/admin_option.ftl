@@ -583,7 +583,7 @@
                       <label for="qiniuPrefix"
                              class="col-lg-2 col-sm-4 control-label"><@spring.message code='admin.setting.form.qiniu-prefix' /></label>
                       <div class="col-lg-4 col-sm-8">
-                        <input type="text" class="form-control" id="qiniuPrefix" name="qiniu_zone"
+                        <input type="text" class="form-control" id="qiniuPrefix" name="qiniu_prefix"
                                value="${options.qiniu_prefix!}">
                       </div>
                     </div>

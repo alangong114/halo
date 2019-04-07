@@ -29,8 +29,9 @@
   </parent>
 
   <properties>
-    <docker.image.prefix>blog</docker.image.prefix>
-
+    <docker.image.prefix>gongmc</docker.image.prefix>
+    <docker.repository>registry.cn-beijing.aliyuncs.com</docker.repository>
+    <docker.registry.name>halo</docker.registry.name>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <java.version>1.8</java.version>
@@ -201,6 +202,7 @@
       <artifactId>commons-collections</artifactId>
       <version>${commons-collections.version}</version>
     </dependency>
+
   </dependencies>
 
   <profiles>
@@ -233,8 +235,8 @@
   </profiles>
   <repositories>
     <repository>
-      <id>repository</id>
-      <name>repository</name>
+      <id>mvnrepository</id>
+      <name>mvnrepository</name>
       <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
       <layout>default</layout>
       <releases>
@@ -247,8 +249,8 @@
   </repositories>
   <pluginRepositories>
     <pluginRepository>
-      <id>repository</id>
-      <name>repository</name>
+      <id>mvnrepository</id>
+      <name>mvnrepository</name>
       <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
       <layout>default</layout>
       <releases>
@@ -259,6 +261,8 @@
       </snapshots>
     </pluginRepository>
   </pluginRepositories>
+
+
   <build>
     <finalName>halo</finalName>
     <resources>
@@ -280,12 +284,10 @@
       </plugin>
 
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.1</version>
         <configuration>
-          <source>${java.version}</source>
-          <target>${java.version}</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <encoding>UTF-8</encoding>
         </configuration>
       </plugin>
@@ -309,22 +311,6 @@
           </execution>
         </executions>
       </plugin>
-      <!--<plugin>-->
-      <!--<groupId>com.spotify</groupId>-->
-      <!--<artifactId>docker-maven-plugin</artifactId>-->
-      <!--<version>1.0.0</version>-->
-      <!--<configuration>-->
-      <!--<imageName>${docker.image.prefix}/${project.artifactId}</imageName>-->
-      <!--<dockerDirectory></dockerDirectory>-->
-      <!--<resources>-->
-      <!--<resource>-->
-      <!--<targetPath>/</targetPath>-->
-      <!--<directory>${project.build.directory}</directory>-->
-      <!--<include>${project.build.finalName}.jar</include>-->
-      <!--</resource>-->
-      <!--</resources>-->
-      <!--</configuration>-->
-      <!--</plugin>-->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -340,6 +326,34 @@
               <Class-Path>resources/</Class-Path>
             </manifestEntries>
           </archive>
+        </configuration>
+      </plugin>
+
+
+      <plugin>
+        <groupId>com.spotify</groupId>
+        <artifactId>docker-maven-plugin</artifactId>
+        <version>1.2.0</version>
+        <executions>
+          <execution>
+            <id>default</id>
+            <phase>deploy</phase>
+            <goals>
+              <goal>build</goal>
+              <goal>tag</goal>
+              <goal>push</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <!--<registryUrl>${docker.repository}/${docker.image.prefix}/${project.artifactId}</registryUrl>-->
+
+          <!--<tag>${project.version}</tag>-->
+          <!--<username>alangong456@qq.com</username>-->
+          <!--<password>alangong114</password>-->
+          <buildArgs>
+            <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+          </buildArgs>
         </configuration>
       </plugin>
     </plugins>

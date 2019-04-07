@@ -4,12 +4,12 @@ LABEL maintainer="G_C"
 WORKDIR /opt/halo
 ADD . /tmp
 ENV TZ=Asia/Shanghai \
-DB_USER="admin" \
-DB_PASSWORD="123456"
+DB_USER="root" \
+DB_PASSWORD="alangong114"
 
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
-
-RUN cd /tmp && mvn package -Pci && mv target/dist/halo/* /opt/halo/ \
+# && mvn package -Pci
+RUN cd /tmp && mv target/dist/halo/* /opt/halo/ \
     && rm -rf /tmp/* && rm -rf ~/.m2
 
 EXPOSE 8090
