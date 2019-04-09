@@ -9,7 +9,7 @@ DB_PASSWORD="alangong114"
 
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
 # && mvn package -Pci
-RUN cd /tmp && mv target/dist/halo/* /opt/halo/ \
+RUN cd /tmp && mvn package -Pci && mv target/dist/halo/* /opt/halo/ \
     && rm -rf /tmp/* && rm -rf ~/.m2
 
 EXPOSE 8090
