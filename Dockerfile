@@ -2,14 +2,14 @@ FROM maven:3-jdk-8-alpine
 LABEL maintainer="G_C"
 
 WORKDIR /opt/halo
-ADD . /tmp
+ADD . /project
 ENV TZ=Asia/Shanghai \
 DB_USER="root" \
 DB_PASSWORD="alangong114"
 
 RUN ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime && echo ${TZ} > /etc/timezone
 # && mvn package -Pci
-RUN cd /tmp && mvn package -Pci && mv target/dist/halo/* /opt/halo/ \
+RUN cd /project && mvn package -Pci && mv target/dist/halo/* /opt/halo/ \
     && rm -rf /tmp/* && rm -rf ~/.m2
 
 EXPOSE 8090
