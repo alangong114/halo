@@ -1,29 +1,25 @@
 package run.halo.app.model.entity;
 
-import run.halo.app.model.enums.PostCreateFrom;
-import run.halo.app.model.enums.PostStatus;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
-import run.halo.app.utils.MarkdownUtils;
+import run.halo.app.model.enums.PostCreateFrom;
+import run.halo.app.model.enums.PostStatus;
 
 import javax.persistence.*;
 import java.util.Date;
 
 /**
- * Post entity.
+ * Post base entity.
  *
  * @author johnniang
+ * @author ryanwang
  */
-@Entity(name = "base_post")
-@Table(name = "posts", indexes = @Index(columnList = "url"))
-@SQLDelete(sql = "update posts set deleted = true where id = ?")
-@Where(clause = "deleted = false")
-@DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.INTEGER, columnDefinition = "int default 0")
 @Data
-@ToString
+@Entity(name = "BasePost")
+@Table(name = "posts")
+@DiscriminatorColumn(name = "type", discriminatorType = DiscriminatorType.INTEGER, columnDefinition = "int default 0")
+@ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class BasePost extends BaseEntity {
 
@@ -46,21 +42,21 @@ public class BasePost extends BaseEntity {
     /**
      * Post url.
      */
-    @Column(name = "url", columnDefinition = "varchar(255) not null")
+    @Column(name = "url", columnDefinition = "varchar(255) not null", unique = true)
     private String url;
 
     /**
      * Original content,not format.
      */
-    @Column(name = "original_content", columnDefinition = "text not null")
+    @Column(name = "original_content", columnDefinition = "longtext not null")
     private String originalContent;
 
     /**
      * Rendered content.
      *
-     * @see MarkdownUtils#renderMarkdown(String)
+     * @see run.halo.app.utils.MarkdownUtils#renderHtml(String)
      */
-    @Column(name = "format_content", columnDefinition = "text not null")
+    @Column(name = "format_content", columnDefinition = "longtext not null")
     private String formatContent;
 
     /**
@@ -129,7 +125,10 @@ public class BasePost extends BaseEntity {
         super.prePersist();
 
         id = null;
-        editTime = getCreateTime();
+
+        if (editTime == null) {
+            editTime = getCreateTime();
+        }
 
         if (status == null) {
             status = PostStatus.DRAFT;
@@ -141,10 +140,6 @@ public class BasePost extends BaseEntity {
 
         if (thumbnail == null) {
             thumbnail = "";
-        }
-
-        if (visits == null) {
-            visits = 0L;
         }
 
         if (disallowComment == null) {
@@ -167,8 +162,20 @@ public class BasePost extends BaseEntity {
             createFrom = PostCreateFrom.ADMIN;
         }
 
-        if (likes == null) {
+        if (visits == null || visits < 0) {
+            visits = 0L;
+        }
+
+        if (likes == null || likes < 0) {
             likes = 0L;
+        }
+
+        if (originalContent == null) {
+            originalContent = "";
+        }
+
+        if (formatContent == null) {
+            formatContent = "";
         }
     }
 

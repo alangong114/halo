@@ -1,6 +1,5 @@
 package run.halo.app.model.entity;
 
-import run.halo.app.utils.DateUtils;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
@@ -15,9 +14,9 @@ import java.util.Date;
  * @author johnniang
  * @date 3/20/19
  */
-@MappedSuperclass
 @Data
 @ToString
+@MappedSuperclass
 @EqualsAndHashCode
 public class BaseEntity {
 
@@ -45,8 +44,13 @@ public class BaseEntity {
     protected void prePersist() {
         deleted = false;
         Date now = DateUtils.now();
-        createTime = now;
-        updateTime = now;
+        if (createTime == null) {
+            createTime = now;
+        }
+
+        if (updateTime == null) {
+            updateTime = now;
+        }
     }
 
     @PreUpdate

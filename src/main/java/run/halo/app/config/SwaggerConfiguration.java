@@ -31,8 +31,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static run.halo.app.model.support.HaloConst.HALO_VERSION;
-import static run.halo.app.model.support.HaloConst.TOKEN_HEADER;
+import static run.halo.app.model.support.HaloConst.*;
 import static springfox.documentation.schema.AlternateTypeRules.newRule;
 
 /**
@@ -61,20 +60,30 @@ public class SwaggerConfiguration {
 
     @Bean
     public Docket haloDefaultApi() {
-        log.debug("Doc disabled: [{}]", haloProperties.getDocDisabled());
-        return buildApiDocket("run.halo.app.portal.api",
-                "run.halo.app.web.controller.portal.api",
-                "/api/**")
-                .enable(!haloProperties.getDocDisabled());
+        if (haloProperties.isDocDisabled()) {
+            log.debug("Doc has been disabled");
+        }
+
+        return buildApiDocket("run.halo.app.content.api",
+                "run.halo.app.controller.content.api",
+                "/api/content/**")
+                .securitySchemes(contentApiKeys())
+                .securityContexts(contentSecurityContext())
+                .enable(!haloProperties.isDocDisabled());
     }
 
     @Bean
     public Docket haloAdminApi() {
-        log.debug("Doc disabled: [{}]", haloProperties.getDocDisabled());
-        return buildApiDocket("run.halo.app.admin",
-                "run.halo.app.web.controller.admin",
-                "/admin/api/**")
-                .enable(!haloProperties.getDocDisabled());
+        if (haloProperties.isDocDisabled()) {
+            log.debug("Doc has been disabled");
+        }
+
+        return buildApiDocket("run.halo.app.admin.api",
+                "run.halo.app.controller.admin",
+                "/api/admin/**")
+                .securitySchemes(adminApiKeys())
+                .securityContexts(adminSecurityContext())
+                .enable(!haloProperties.isDocDisabled());
     }
 
     @Bean
@@ -102,8 +111,6 @@ public class SwaggerConfiguration {
                 .paths(PathSelectors.ant(antPattern))
                 .build()
                 .apiInfo(apiInfo())
-                .securitySchemes(Collections.singletonList(apiKeys()))
-                .securityContexts(Collections.singletonList(securityContext()))
                 .useDefaultResponseMessages(false)
                 .globalResponseMessage(RequestMethod.GET, globalResponses)
                 .globalResponseMessage(RequestMethod.POST, globalResponses)
@@ -112,22 +119,49 @@ public class SwaggerConfiguration {
                 .directModelSubstitute(Temporal.class, String.class);
     }
 
-    private ApiKey apiKeys() {
-        return new ApiKey("TOKEN ACCESS", TOKEN_HEADER, In.HEADER.name());
+    private List<ApiKey> adminApiKeys() {
+        return Arrays.asList(
+                new ApiKey("Token from header", ADMIN_TOKEN_HEADER_NAME, In.HEADER.name()),
+                new ApiKey("Token from query", ADMIN_TOKEN_QUERY_NAME, In.QUERY.name())
+        );
     }
 
-    private SecurityContext securityContext() {
-        return SecurityContext.builder()
-                .securityReferences(defaultAuth())
-                .forPaths(PathSelectors.regex("/api/.*"))
-                .build();
+    private List<SecurityContext> adminSecurityContext() {
+        return Collections.singletonList(
+                SecurityContext.builder()
+                        .securityReferences(defaultAuth())
+                        .forPaths(PathSelectors.regex("/api/admin/.*"))
+                        .build()
+        );
+    }
+
+    private List<ApiKey> contentApiKeys() {
+        return Arrays.asList(
+                new ApiKey("Access key from header", API_ACCESS_KEY_HEADER_NAME, In.HEADER.name()),
+                new ApiKey("Access key from query", API_ACCESS_KEY_QUERY_NAME, In.QUERY.name())
+        );
+    }
+
+    private List<SecurityContext> contentSecurityContext() {
+        return Collections.singletonList(
+                SecurityContext.builder()
+                        .securityReferences(contentApiAuth())
+                        .forPaths(PathSelectors.regex("/api/content/.*"))
+                        .build()
+        );
     }
 
     private List<SecurityReference> defaultAuth() {
-        AuthorizationScope[] authorizationScopes = {new AuthorizationScope("global", "accessEverything")};
-        return Collections.singletonList(new SecurityReference("TOKEN ACCESS", authorizationScopes));
+        AuthorizationScope[] authorizationScopes = {new AuthorizationScope("Admin api", "Access admin api")};
+        return Arrays.asList(new SecurityReference("Token from header", authorizationScopes),
+                new SecurityReference("Token from query", authorizationScopes));
     }
 
+    private List<SecurityReference> contentApiAuth() {
+        AuthorizationScope[] authorizationScopes = {new AuthorizationScope("content api", "Access content api")};
+        return Arrays.asList(new SecurityReference("Access key from header", authorizationScopes),
+                new SecurityReference("Access key from query", authorizationScopes));
+    }
 
     private ApiInfo apiInfo() {
         return new ApiInfoBuilder()
@@ -135,7 +169,9 @@ public class SwaggerConfiguration {
                 .description("Documentation for Halo API")
                 .version(HALO_VERSION)
                 .termsOfServiceUrl("https://github.com/halo-dev")
-                .contact(new Contact("RYAN0UP", "https://ryanc.cc/", "i#ryanc.cc"))
+                .contact(new Contact("halo-dev", "https://github.com/halo-dev/halo/issues", "i#ryanc.cc"))
+                .license("GNU General Public License v3.0")
+                .licenseUrl("https://github.com/halo-dev/halo/blob/master/LICENSE")
                 .build();
     }
 

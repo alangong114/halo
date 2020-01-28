@@ -1,32 +1,35 @@
 package run.halo.app.service.impl;
 
-import run.halo.app.exception.AlreadyExistsException;
-import run.halo.app.exception.NotFoundException;
-import run.halo.app.model.entity.Category;
-import run.halo.app.model.vo.CategoryVO;
-import run.halo.app.repository.CategoryRepository;
-import run.halo.app.service.CategoryService;
-import run.halo.app.service.base.AbstractCrudService;
+import com.google.common.base.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.exception.AlreadyExistsException;
 import run.halo.app.exception.NotFoundException;
+import run.halo.app.model.dto.CategoryDTO;
+import run.halo.app.model.entity.Category;
+import run.halo.app.model.vo.CategoryVO;
 import run.halo.app.repository.CategoryRepository;
+import run.halo.app.service.CategoryService;
+import run.halo.app.service.PostCategoryService;
 import run.halo.app.service.base.AbstractCrudService;
+import run.halo.app.utils.ServiceUtils;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * CategoryService implementation class
+ * CategoryService implementation class.
  *
- * @author : RYAN0UP
- * @date : 2019-03-14
+ * @author ryanwang
+ * @author johnniang
+ * @date 2019-03-14
  */
 @Slf4j
 @Service
@@ -34,22 +37,17 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository) {
+    private final PostCategoryService postCategoryService;
+
+    public CategoryServiceImpl(CategoryRepository categoryRepository,
+                               PostCategoryService postCategoryService) {
         super(categoryRepository);
         this.categoryRepository = categoryRepository;
-    }
-
-    /**
-     * Remove category and relationship
-     *
-     * @param id id
-     */
-    @Override
-    public void remove(Integer id) {
-        // TODO 删除分类，以及和文章的对应关系
+        this.postCategoryService = postCategoryService;
     }
 
     @Override
+    @Transactional
     public Category create(Category category) {
         Assert.notNull(category, "Category to create must not be null");
 
@@ -58,11 +56,11 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
 
         if (count > 0) {
             log.error("Category has exist already: [{}]", category);
-            throw new AlreadyExistsException("The category has exist already");
+            throw new AlreadyExistsException("该分类已存在");
         }
 
         // Check parent id
-        if (category.getParentId() > 0) {
+        if (!ServiceUtils.isEmptyId(category.getParentId())) {
             count = categoryRepository.countById(category.getParentId());
 
             if (count == 0) {
@@ -108,23 +106,20 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
             return;
         }
 
-        // Create children container for removing after
-        List<Category> children = new LinkedList<>();
+        // Get children for removing after
+        List<Category> children = categories.stream()
+                .filter(category -> Objects.equal(parentCategory.getId(), category.getParentId()))
+                .collect(Collectors.toList());
 
-        categories.forEach(category -> {
-            if (parentCategory.getId().equals(category.getParentId())) {
-                // Save child category
-                children.add(category);
-
-                // Convert to child category vo
-                CategoryVO child = new CategoryVO().convertFrom(category);
-
-                // Init children if absent
-                if (parentCategory.getChildren() == null) {
-                    parentCategory.setChildren(new LinkedList<>());
-                }
-                parentCategory.getChildren().add(child);
+        children.forEach(category -> {
+            // Convert to child category vo
+            CategoryVO child = new CategoryVO().convertFrom(category);
+            // Init children if absent
+            if (parentCategory.getChildren() == null) {
+                parentCategory.setChildren(new LinkedList<>());
             }
+            // Add child
+            parentCategory.getChildren().add(child);
         });
 
         // Remove all child categories
@@ -152,14 +147,58 @@ public class CategoryServiceImpl extends AbstractCrudService<Category, Integer> 
         return topCategory;
     }
 
-    /**
-     * Get category by slug name
-     *
-     * @param slugName slug name
-     * @return Category
-     */
     @Override
     public Category getBySlugName(String slugName) {
-        return categoryRepository.getBySlugName(slugName).orElseThrow(() -> new NotFoundException("The Category does not exist").setErrorData(slugName));
+        return categoryRepository.getBySlugName(slugName).orElse(null);
+    }
+
+    @Override
+    public Category getBySlugNameOfNonNull(String slugName) {
+        return categoryRepository.getBySlugName(slugName).orElseThrow(() -> new NotFoundException("查询不到该分类的信息").setErrorData(slugName));
+    }
+
+    @Override
+    public Category getByName(String name) {
+        return categoryRepository.getByName(name).orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public void removeCategoryAndPostCategoryBy(Integer categoryId) {
+        List<Category> categories = listByParentId(categoryId);
+        if (null != categories && categories.size() > 0) {
+            categories.forEach(category -> {
+                category.setParentId(0);
+                update(category);
+            });
+        }
+        // Remove category
+        removeById(categoryId);
+        // Remove post categories
+        postCategoryService.removeByCategoryId(categoryId);
+    }
+
+    @Override
+    public List<Category> listByParentId(Integer id) {
+        Assert.notNull(id, "Parent id must not be null");
+        return categoryRepository.findByParentId(id);
+    }
+
+    @Override
+    public CategoryDTO convertTo(Category category) {
+        Assert.notNull(category, "Category must not be null");
+
+        return new CategoryDTO().convertFrom(category);
+    }
+
+    @Override
+    public List<CategoryDTO> convertTo(List<Category> categories) {
+        if (CollectionUtils.isEmpty(categories)) {
+            return Collections.emptyList();
+        }
+
+        return categories.stream()
+                .map(this::convertTo)
+                .collect(Collectors.toList());
     }
 }

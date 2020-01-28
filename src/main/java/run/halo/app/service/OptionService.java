@@ -1,22 +1,18 @@
 package run.halo.app.service;
 
-import run.halo.app.exception.MissingPropertyException;
-import run.halo.app.model.dto.OptionOutputDTO;
-import run.halo.app.model.entity.Option;
-import run.halo.app.model.enums.OptionSource;
-import run.halo.app.model.enums.ValueEnum;
-import run.halo.app.model.params.OptionParam;
-import run.halo.app.model.properties.PropertyEnum;
-import run.halo.app.service.base.CrudService;
 import com.qiniu.common.Zone;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.transaction.annotation.Transactional;
 import run.halo.app.exception.MissingPropertyException;
-import run.halo.app.model.dto.OptionOutputDTO;
+import run.halo.app.model.dto.OptionDTO;
+import run.halo.app.model.dto.OptionSimpleDTO;
 import run.halo.app.model.entity.Option;
-import run.halo.app.model.enums.OptionSource;
+import run.halo.app.model.enums.ValueEnum;
 import run.halo.app.model.params.OptionParam;
+import run.halo.app.model.params.OptionQuery;
 import run.halo.app.model.properties.PropertyEnum;
 import run.halo.app.service.base.CrudService;
 
@@ -26,9 +22,10 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Option service.
+ * Option service interface.
  *
  * @author johnniang
+ * @date 2019-03-14
  */
 public interface OptionService extends CrudService<Option, Integer> {
 
@@ -38,42 +35,55 @@ public interface OptionService extends CrudService<Option, Integer> {
 
     int DEFAULT_RSS_PAGE_SIZE = 20;
 
-    /**
-     * Save one option
-     *
-     * @param key    key must not be blank
-     * @param value  value
-     * @param source source
-     */
-    @Transactional
-    void save(@NonNull String key, String value, @NonNull OptionSource source);
+    String OPTIONS_KEY = "options";
 
     /**
      * Save multiple options
      *
      * @param options options
-     * @param source  source
      */
     @Transactional
-    void save(@NonNull Map<String, String> options, @NonNull OptionSource source);
+    void save(@Nullable Map<String, Object> options);
 
     /**
-     * SAve multiple options
+     * Save multiple options
      *
      * @param optionParams option params
-     * @param source       source
      */
     @Transactional
-    void save(List<OptionParam> optionParams, @NonNull OptionSource source);
+    void save(@Nullable List<OptionParam> optionParams);
+
+    /**
+     * Save single option.
+     *
+     * @param optionParam option param
+     */
+    void save(@Nullable OptionParam optionParam);
+
+    /**
+     * Update option by id.
+     *
+     * @param optionId    option id must not be null.
+     * @param optionParam option param must not be null.
+     */
+    void update(@NonNull Integer optionId, @NonNull OptionParam optionParam);
+
+    /**
+     * Saves a property.
+     *
+     * @param property must not be null
+     * @param value    could be null
+     */
+    @Transactional
+    void saveProperty(@NonNull PropertyEnum property, @Nullable String value);
 
     /**
      * Saves blog properties.
      *
      * @param properties blog properties
-     * @param source     source
      */
     @Transactional
-    void saveProperties(@NonNull Map<? extends PropertyEnum, String> properties, @NonNull OptionSource source);
+    void saveProperties(@NonNull Map<? extends PropertyEnum, String> properties);
 
     /**
      * Get all options
@@ -81,7 +91,17 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return Map
      */
     @NonNull
-    Map<String, String> listOptions();
+    @Transactional
+    Map<String, Object> listOptions();
+
+    /**
+     * Lists options by key list.
+     *
+     * @param keys key list
+     * @return a map of option
+     */
+    @NonNull
+    Map<String, Object> listOptions(@Nullable List<String> keys);
 
     /**
      * Lists all option dtos.
@@ -89,7 +109,25 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return a list of option dto
      */
     @NonNull
-    List<OptionOutputDTO> listDtos();
+    List<OptionDTO> listDtos();
+
+    /**
+     * Pages option output dtos.
+     *
+     * @param pageable    page info must not be null
+     * @param optionQuery optionQuery
+     * @return a page of option output dto
+     */
+    Page<OptionSimpleDTO> pageDtosBy(@NonNull Pageable pageable, OptionQuery optionQuery);
+
+    /**
+     * Removes option permanently.
+     *
+     * @param id option id must not be null
+     * @return option detail deleted
+     */
+    @NonNull
+    Option removePermanently(@NonNull Integer id);
 
     /**
      * Get option by key
@@ -98,7 +136,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return option value or null
      */
     @Nullable
-    String getByKeyOfNullable(@NonNull String key);
+    Object getByKeyOfNullable(@NonNull String key);
 
     /**
      * Gets option value of non null.
@@ -107,7 +145,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return option value of non null
      */
     @NonNull
-    String getByKeyOfNonNull(@NonNull String key);
+    Object getByKeyOfNonNull(@NonNull String key);
 
     /**
      * Get option by key
@@ -116,7 +154,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return an optional option value
      */
     @NonNull
-    Optional<String> getByKey(@NonNull String key);
+    Optional<Object> getByKey(@NonNull String key);
 
     /**
      * Gets option value by blog property.
@@ -125,7 +163,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return an option value
      */
     @Nullable
-    String getByPropertyOfNullable(@NonNull PropertyEnum property);
+    Object getByPropertyOfNullable(@NonNull PropertyEnum property);
 
     /**
      * Gets option value by blog property.
@@ -135,7 +173,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @throws MissingPropertyException throws when property value dismisses
      */
     @NonNull
-    String getByPropertyOfNonNull(@NonNull PropertyEnum property);
+    Object getByPropertyOfNonNull(@NonNull PropertyEnum property);
 
     /**
      * Gets option value by blog property.
@@ -144,7 +182,7 @@ public interface OptionService extends CrudService<Option, Integer> {
      * @return an optional option value
      */
     @NonNull
-    Optional<String> getByProperty(@NonNull PropertyEnum property);
+    Optional<Object> getByProperty(@NonNull PropertyEnum property);
 
     /**
      * Gets property value by blog property.
@@ -277,4 +315,35 @@ public interface OptionService extends CrudService<Option, Integer> {
     @NonNull
     Locale getLocale();
 
+    /**
+     * Gets blog base url. (Without /)
+     *
+     * @return blog base url (If blog url isn't present, current machine IP address will be default)
+     */
+    @NonNull
+    String getBlogBaseUrl();
+
+    /**
+     * Gets blog title.
+     *
+     * @return blog title.
+     */
+    @NonNull
+    String getBlogTitle();
+
+    /**
+     * Gets blog birthday.
+     *
+     * @return birthday timestamp
+     */
+    long getBirthday();
+
+    /**
+     * Converts to option output dto.
+     *
+     * @param option option must not be null
+     * @return an option output dto
+     */
+    @NonNull
+    OptionSimpleDTO convertToDto(@NonNull Option option);
 }

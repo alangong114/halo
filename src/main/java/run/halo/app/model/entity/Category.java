@@ -3,8 +3,6 @@ package run.halo.app.model.entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
 
@@ -13,11 +11,9 @@ import javax.persistence.*;
  *
  * @author johnniang
  */
+@Data
 @Entity
 @Table(name = "categories")
-@SQLDelete(sql = "update categories set deleted = true where id = ?")
-@Where(clause = "deleted = false")
-@Data
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class Category extends BaseEntity {
@@ -35,7 +31,7 @@ public class Category extends BaseEntity {
     /**
      * Category slug name.
      */
-    @Column(name = "slug_name", columnDefinition = "varchar(50) not null")
+    @Column(name = "slug_name", columnDefinition = "varchar(50) not null", unique = true)
     private String slugName;
 
     /**
@@ -54,6 +50,14 @@ public class Category extends BaseEntity {
     public void prePersist() {
         super.prePersist();
         id = null;
+
+        if (description == null) {
+            description = "";
+        }
+
+        if (parentId == null || parentId < 0) {
+            parentId = 0;
+        }
     }
 
 }

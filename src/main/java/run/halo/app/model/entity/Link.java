@@ -3,22 +3,18 @@ package run.halo.app.model.entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
 
 /**
  * Link entity
  *
- * @author : RYAN0UP
- * @date : 2019-03-12
+ * @author ryanwang
+ * @date 2019-03-12
  */
 @Data
 @Entity
 @Table(name = "links")
-@SQLDelete(sql = "update links set deleted = true where id = ?")
-@Where(clause = "deleted = false")
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class Link extends BaseEntity {
@@ -53,17 +49,26 @@ public class Link extends BaseEntity {
     private String description;
 
     /**
-     * Link group name.
+     * Link team name.
      */
     @Column(name = "team", columnDefinition = "varchar(255) default ''")
     private String team;
 
+    /**
+     * Sort.
+     */
+    @Column(name = "priority", columnDefinition = "int default 0")
+    private Integer priority;
 
     @Override
     public void prePersist() {
         super.prePersist();
 
         id = null;
+
+        if (priority == null) {
+            priority = 0;
+        }
 
         if (logo == null) {
             logo = "";

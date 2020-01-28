@@ -2,9 +2,9 @@ package run.halo.app.model.params;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import run.halo.app.model.support.CreateCheck;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
 
 /**
  * Install parameters.
@@ -19,25 +19,17 @@ public class InstallParam extends UserParam {
     /**
      * Blog locale.
      */
-    @NotBlank(message = "Blog locale must not be blank")
-    private String locale;
+    private String locale = "zh";
 
     /**
      * Blog title.
      */
-    @NotBlank(message = "Blog title must not be blank")
+    @NotBlank(message = "博客名称不能为空", groups = CreateCheck.class)
     private String title;
 
     /**
      * Blog url.
      */
-    @NotBlank(message = "Blog url must not be blank")
     private String url;
 
-    /**
-     * Password.
-     */
-    @NotBlank(message = "Password must not be blank")
-    @Size(max = 100, message = "Length of password must not be more than {max}")
-    private String password;
 }

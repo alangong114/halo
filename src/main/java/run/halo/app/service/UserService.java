@@ -1,18 +1,21 @@
 package run.halo.app.service;
 
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
+import run.halo.app.exception.ForbiddenException;
 import run.halo.app.exception.NotFoundException;
 import run.halo.app.model.entity.User;
 import run.halo.app.model.params.UserParam;
 import run.halo.app.service.base.CrudService;
-import org.springframework.lang.NonNull;
 
-import javax.servlet.http.HttpSession;
 import java.util.Optional;
 
 /**
- * User service.
+ * User service interface.
  *
  * @author johnniang
+ * @author ryanwang
+ * @date 2019-03-14
  */
 public interface UserService extends CrudService<User, Integer> {
 
@@ -78,17 +81,6 @@ public interface UserService extends CrudService<User, Integer> {
     User getByEmailOfNonNull(@NonNull String email);
 
     /**
-     * Logins by username and password.
-     *
-     * @param key         username or email must not be blank
-     * @param password    password must not be blank
-     * @param httpSession http session must not be null
-     * @return user info
-     */
-    @NonNull
-    User login(@NonNull String key, @NonNull String password, @NonNull HttpSession httpSession);
-
-    /**
      * Updates user password.
      *
      * @param oldPassword old password must not be blank
@@ -103,9 +95,42 @@ public interface UserService extends CrudService<User, Integer> {
      * Creates an user.
      *
      * @param userParam user param must not be null.
-     * @param password  password must not be blank
      * @return created user
      */
     @NonNull
-    User createBy(@NonNull UserParam userParam, @NonNull String password);
+    User createBy(@NonNull UserParam userParam);
+
+    /**
+     * The user must not expire.
+     *
+     * @param user user info must not be null
+     * @throws ForbiddenException throws if the given user has been expired
+     */
+    void mustNotExpire(@NonNull User user);
+
+    /**
+     * Checks the password is match the user password.
+     *
+     * @param user          user info must not be null
+     * @param plainPassword plain password
+     * @return true if the given password is match the user password; false otherwise
+     */
+    boolean passwordMatch(@NonNull User user, @Nullable String plainPassword);
+
+    /**
+     * Set user password.
+     *
+     * @param user          user must not be null
+     * @param plainPassword plain password must not be blank
+     */
+    void setPassword(@NonNull User user, @NonNull String plainPassword);
+
+    /**
+     * verify user's email and username
+     *
+     * @param username username must not be null
+     * @param password password must not be null
+     * @return boolean
+     */
+    boolean verifyUser(@NonNull String username, @NonNull String password);
 }

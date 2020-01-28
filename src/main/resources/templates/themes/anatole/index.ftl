@@ -1,29 +1,29 @@
 <#include "module/macro.ftl">
-<@head title="${options.blog_title!'Halo'}" keywords="${options.seo_keywords!'Halo'}" description="${options.seo_desc!'Halo'}"></@head>
+<@head title="${options.blog_title!}" keywords="${options.seo_keywords!}" description="${options.seo_description!}" />
 <#include "module/sidebar.ftl">
 <div class="main">
     <#include "module/page-top.ftl">
     <div class="autopagerize_page_element">
         <div class="content">
             <#include "module/post_entry.ftl">
-            <#if posts.pages gt 1>
+            <#if posts.totalPages gt 1>
                 <div class="pagination">
                     <ul class="clearfix">
                         <#if posts.hasPrevious()>
-                            <#if posts.page == 1>
+                            <#if posts.number == 1>
                                 <li class="pre pagbuttons">
-                                    <a class="btn" role="navigation" href="${options.blog_url!}/">上一页</a>
+                                    <a class="btn" role="navigation" href="${context!}/">上一页</a>
                                 </li>
                             <#else >
                                 <li class="pre pagbuttons">
-                                    <a class="btn" role="navigation" href="${options.blog_url!}/page/${posts.page}">上一页</a>
+                                    <a class="btn" role="navigation" href="${context!}/page/${posts.number}">上一页</a>
                                 </li>
                             </#if>
                         </#if>
                         <#if posts.hasNext()>
-                        <li class="next pagbuttons">
-                            <a class="btn" role="navigation" href="${options.blog_url!}/page/${posts.page+2}">下一页</a>
-                        </li>
+                            <li class="next pagbuttons">
+                                <a class="btn" role="navigation" href="${context!}/page/${posts.number+2}">下一页</a>
+                            </li>
                         </#if>
                     </ul>
                 </div>

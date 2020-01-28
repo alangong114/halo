@@ -1,98 +1,52 @@
 package run.halo.app.service;
 
-import run.halo.app.model.dto.post.PostMinimalOutputDTO;
-import run.halo.app.model.dto.post.PostSimpleOutputDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
+import run.halo.app.model.dto.post.BasePostDetailDTO;
 import run.halo.app.model.entity.Post;
+import run.halo.app.model.entity.PostMeta;
 import run.halo.app.model.enums.PostStatus;
+import run.halo.app.model.params.PostQuery;
 import run.halo.app.model.vo.ArchiveMonthVO;
 import run.halo.app.model.vo.ArchiveYearVO;
 import run.halo.app.model.vo.PostDetailVO;
 import run.halo.app.model.vo.PostListVO;
-import run.halo.app.service.base.CrudService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.lang.NonNull;
-import org.springframework.transaction.annotation.Transactional;
-import run.halo.app.service.base.CrudService;
+import run.halo.app.service.base.BasePostService;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Post service.
+ * Post service interface.
  *
  * @author johnniang
- * @author RYAN0UP
+ * @author ryanwang
+ * @author guqing
+ * @date 2019-03-14
  */
-public interface PostService extends CrudService<Post, Integer> {
+public interface PostService extends BasePostService<Post> {
 
     /**
-     * Lists latest posts of minimal.
+     * Pages posts.
      *
-     * @param top top number must not be less than 0
-     * @return latest posts of minimal
+     * @param postQuery post query must not be null
+     * @param pageable  page info must not be null
+     * @return a page of post
      */
     @NonNull
-    Page<PostMinimalOutputDTO> pageLatestOfMinimal(int top);
-
+    Page<Post> pageBy(@NonNull PostQuery postQuery, @NonNull Pageable pageable);
 
     /**
-     * Lists latest posts of simple .
+     * Pages post by keyword
      *
-     * @param top top number must not be less than 0
-     * @return latest posts of simple
+     * @param keyword  keyword
+     * @param pageable pageable
+     * @return a page of post
      */
     @NonNull
-    Page<PostSimpleOutputDTO> pageLatestOfSimple(int top);
-
-
-    /**
-     * Lists latest posts.
-     *
-     * @param top top number must not be less than 0
-     * @return latest posts
-     */
-    @NonNull
-    Page<Post> pageLatest(int top);
-
-    /**
-     * List by status and type
-     *
-     * @param status   post status must not be null
-     * @param pageable page info must not be null
-     * @return Page<PostSimpleOutputDTO>
-     */
-    @NonNull
-    Page<Post> pageBy(@NonNull PostStatus status, @NonNull Pageable pageable);
-
-
-    /**
-     * List simple output dto by status and type
-     *
-     * @param status   post status must not be null
-     * @param pageable page info must not be null
-     * @return Page<PostSimpleOutputDTO>
-     */
-    @NonNull
-    Page<PostSimpleOutputDTO> pageSimpleDtoByStatus(@NonNull PostStatus status, @NonNull Pageable pageable);
-
-    /**
-     * Lists page list vo by status, type and pageable.
-     *
-     * @param status   post status must not be null
-     * @param pageable page info must not be null
-     * @return a page of page list vo
-     */
-    @NonNull
-    Page<PostListVO> pageListVoBy(@NonNull PostStatus status, @NonNull Pageable pageable);
-
-    /**
-     * Count posts by status and type
-     *
-     * @param status status
-     * @return posts count
-     */
-    Long countByStatus(PostStatus status);
+    Page<Post> pageBy(@NonNull String keyword, @NonNull Pageable pageable);
 
     /**
      * Creates post by post param.
@@ -100,11 +54,24 @@ public interface PostService extends CrudService<Post, Integer> {
      * @param post        post must not be null
      * @param tagIds      tag id set
      * @param categoryIds category id set
+     * @param postMetas   post metas
+     * @param autoSave    autoSave
      * @return post created
      */
     @NonNull
-    @Transactional
-    PostDetailVO createBy(@NonNull Post post, Set<Integer> tagIds, Set<Integer> categoryIds);
+    PostDetailVO createBy(@NonNull Post post, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> postMetas, boolean autoSave);
+
+    /**
+     * Creates post by post param.
+     *
+     * @param post        post must not be null
+     * @param tagIds      tag id set
+     * @param categoryIds category id set
+     * @param autoSave    autoSave
+     * @return post created
+     */
+    @NonNull
+    PostDetailVO createBy(@NonNull Post post, Set<Integer> tagIds, Set<Integer> categoryIds, boolean autoSave);
 
     /**
      * Updates post by post, tag id set and category id set.
@@ -112,42 +79,31 @@ public interface PostService extends CrudService<Post, Integer> {
      * @param postToUpdate post to update must not be null
      * @param tagIds       tag id set
      * @param categoryIds  category id set
+     * @param autoSave     autoSave
      * @return updated post
      */
     @NonNull
-    @Transactional
-    PostDetailVO updateBy(@NonNull Post postToUpdate, Set<Integer> tagIds, Set<Integer> categoryIds);
+    PostDetailVO updateBy(@NonNull Post postToUpdate, Set<Integer> tagIds, Set<Integer> categoryIds, Set<PostMeta> postMetas, boolean autoSave);
 
     /**
-     * Get post by url.
+     * Gets post by post status and url.
      *
-     * @param url post url.
-     * @return Post
-     */
-    Post getByUrl(@NonNull String url);
-
-    /**
-     * Get post detail vo by post id.
-     *
-     * @param postId post id must not be null
-     * @return post detail vo
+     * @param status post status must not be null
+     * @param url    post url must not be blank
+     * @return post info
      */
     @NonNull
-    PostDetailVO getDetailVoBy(@NonNull Integer postId);
+    @Override
+    Post getBy(@NonNull PostStatus status, @NonNull String url);
 
     /**
-     * Counts visit total number.
+     * Removes posts in batch.
      *
-     * @return visit total number
+     * @param ids ids must not be null.
+     * @return a list of deleted post.
      */
-    long countVisit();
-
-    /**
-     * Counts like total number.
-     *
-     * @return like total number
-     */
-    long countLike();
+    @NonNull
+    List<Post> removeByIds(@NonNull Collection<Integer> ids);
 
     /**
      * Lists year archives.
@@ -164,4 +120,73 @@ public interface PostService extends CrudService<Post, Integer> {
      */
     @NonNull
     List<ArchiveMonthVO> listMonthArchives();
+
+    /**
+     * Import post from markdown document.
+     *
+     * @param markdown markdown document.
+     * @param filename filename
+     * @return imported post
+     */
+    @NonNull
+    PostDetailVO importMarkdown(@NonNull String markdown, String filename);
+
+    /**
+     * Export post to markdown file by post id.
+     *
+     * @param id post id
+     * @return markdown file content
+     */
+    @NonNull
+    String exportMarkdown(@NonNull Integer id);
+
+    /**
+     * Export post to markdown file by post.
+     *
+     * @param post current post
+     * @return markdown file content
+     */
+    @NonNull
+    String exportMarkdown(@NonNull Post post);
+
+    /**
+     * Converts to detail vo.
+     *
+     * @param post post must not be null
+     * @return post detail vo
+     */
+    @NonNull
+    PostDetailVO convertToDetailVo(@NonNull Post post);
+
+    /**
+     * Converts to a page of post list vo.
+     *
+     * @param postPage post page must not be null
+     * @return a page of post list vo
+     */
+    @NonNull
+    Page<PostListVO> convertToListVo(@NonNull Page<Post> postPage);
+
+    /**
+     * Converts to a page of post detail dto.
+     *
+     * @param postPage post page must not be null
+     * @return a page of post detail dto
+     */
+    Page<BasePostDetailDTO> convertToDetailDto(@NonNull Page<Post> postPage);
+
+    /**
+     * Converts to a page of detail vo.
+     *
+     * @param postPage post page must not be null
+     * @return a page of post detail vo
+     */
+    Page<PostDetailVO> convertToDetailVo(@NonNull Page<Post> postPage);
+
+    /**
+     * Publish a post visit event.
+     *
+     * @param postId postId must not be null
+     */
+    void publishVisitEvent(@NonNull Integer postId);
 }

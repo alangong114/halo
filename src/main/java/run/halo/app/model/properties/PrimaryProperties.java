@@ -1,5 +1,7 @@
 package run.halo.app.model.properties;
 
+import static run.halo.app.model.support.HaloConst.DEFAULT_THEME_ID;
+
 /**
  * Primary properties.
  *
@@ -8,20 +10,36 @@ package run.halo.app.model.properties;
  */
 public enum PrimaryProperties implements PropertyEnum {
 
-    IS_INSTALLED("is_installed", Boolean.class),
+    /**
+     * is blog installed.
+     */
+    IS_INSTALLED("is_installed", Boolean.class, "false"),
 
-    THEME("theme", String.class),
+    /**
+     * current actived theme.
+     */
+    THEME("theme", String.class, DEFAULT_THEME_ID),
 
-    BIRTHDAY("birthday", Long.class),
-    ;
+    /**
+     * blog birthday
+     */
+    BIRTHDAY("birthday", Long.class, ""),
+
+    /**
+     * developer mode.
+     */
+    DEV_MODE("developer_mode", Boolean.class, "false");
 
     private final String value;
 
     private final Class<?> type;
 
-    PrimaryProperties(String value, Class<?> type) {
+    private final String defaultValue;
+
+    PrimaryProperties(String value, Class<?> type, String defaultValue) {
         this.value = value;
         this.type = type;
+        this.defaultValue = defaultValue;
     }
 
     @Override
@@ -30,6 +48,12 @@ public enum PrimaryProperties implements PropertyEnum {
     }
 
     @Override
+    public String defaultValue() {
+        return defaultValue;
+    }
+
+    @Override
     public String getValue() {
         return value;
-    }}
+    }
+}

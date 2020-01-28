@@ -1,168 +1,313 @@
 package run.halo.app.service.impl;
 
+import cn.hutool.core.util.StrUtil;
 import com.qiniu.common.Zone;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import run.halo.app.cache.StringCacheStore;
+import run.halo.app.config.properties.HaloProperties;
+import run.halo.app.event.options.OptionUpdatedEvent;
 import run.halo.app.exception.MissingPropertyException;
-import run.halo.app.model.dto.OptionOutputDTO;
+import run.halo.app.model.dto.OptionDTO;
+import run.halo.app.model.dto.OptionSimpleDTO;
 import run.halo.app.model.entity.Option;
-import run.halo.app.model.enums.OptionSource;
 import run.halo.app.model.enums.ValueEnum;
 import run.halo.app.model.params.OptionParam;
+import run.halo.app.model.params.OptionQuery;
 import run.halo.app.model.properties.*;
 import run.halo.app.repository.OptionRepository;
 import run.halo.app.service.OptionService;
 import run.halo.app.service.base.AbstractCrudService;
+import run.halo.app.utils.DateUtils;
+import run.halo.app.utils.HaloUtils;
 import run.halo.app.utils.ServiceUtils;
+import run.halo.app.utils.ValidationUtils;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import javax.persistence.criteria.Predicate;
+import java.util.*;
 
 /**
  * OptionService implementation class
  *
- * @author : RYAN0UP
- * @date : 2019-03-14
+ * @author ryanwang
+ * @date 2019-03-14
  */
 @Slf4j
 @Service
 public class OptionServiceImpl extends AbstractCrudService<Option, Integer> implements OptionService {
 
     private final OptionRepository optionRepository;
+    private final ApplicationContext applicationContext;
+    private final StringCacheStore cacheStore;
+    private final Map<String, PropertyEnum> propertyEnumMap;
+    private final ApplicationEventPublisher eventPublisher;
+    private HaloProperties haloProperties;
 
-    public OptionServiceImpl(OptionRepository optionRepository) {
+    public OptionServiceImpl(HaloProperties haloProperties,
+                             OptionRepository optionRepository,
+                             ApplicationContext applicationContext,
+                             StringCacheStore cacheStore,
+                             ApplicationEventPublisher eventPublisher) {
         super(optionRepository);
+        this.haloProperties = haloProperties;
         this.optionRepository = optionRepository;
+        this.applicationContext = applicationContext;
+        this.cacheStore = cacheStore;
+        this.eventPublisher = eventPublisher;
+
+        propertyEnumMap = Collections.unmodifiableMap(PropertyEnum.getValuePropertyEnumMap());
     }
 
-    /**
-     * Saves one option
-     *
-     * @param key    key
-     * @param value  value
-     * @param source source
-     */
-    @Override
-    public void save(String key, String value, OptionSource source) {
+    @Deprecated
+    @Transactional
+    private void save(@NonNull String key, @Nullable String value) {
         Assert.hasText(key, "Option key must not be blank");
+        save(Collections.singletonMap(key, value));
+    }
 
-        if (StringUtils.isBlank(value)) {
-            // If the value is blank, remove the key
-            optionRepository.removeByOptionKey(key);
+    @Override
+    @Transactional
+    public void save(Map<String, Object> optionMap) {
+        if (CollectionUtils.isEmpty(optionMap)) {
             return;
         }
 
-        // TODO Consider cache options with map
-        Option option = optionRepository.findByOptionKey(key).map(anOption -> {
-            // Exist
-            anOption.setOptionValue(value);
-            return anOption;
-        }).orElseGet(() -> {
-            // Not exist
-            Option anOption = new Option();
-            anOption.setOptionKey(key);
-            anOption.setOptionValue(value);
-            anOption.setSource(source);
-            return anOption;
+        Map<String, Option> optionKeyMap = ServiceUtils.convertToMap(listAll(), Option::getKey);
+
+        List<Option> optionsToCreate = new LinkedList<>();
+        List<Option> optionsToUpdate = new LinkedList<>();
+
+        optionMap.forEach((key, value) -> {
+            Option oldOption = optionKeyMap.get(key);
+            if (oldOption == null || !StringUtils.equals(oldOption.getValue(), value.toString())) {
+                OptionParam optionParam = new OptionParam();
+                optionParam.setKey(key);
+                optionParam.setValue(value.toString());
+                ValidationUtils.validate(optionParam);
+
+                if (oldOption == null) {
+                    // Create it
+                    optionsToCreate.add(optionParam.convertTo());
+                } else if (!StringUtils.equals(oldOption.getValue(), value.toString())) {
+                    // Update it
+                    optionParam.update(oldOption);
+                    optionsToUpdate.add(oldOption);
+                }
+            }
         });
 
-        // Save or update the options
-        optionRepository.save(option);
-    }
+        // Update them
+        updateInBatch(optionsToUpdate);
 
-    /**
-     * Saves multiple options
-     *
-     * @param options options
-     * @param source  source
-     */
-    @Override
-    public void save(Map<String, String> options, OptionSource source) {
-        if (CollectionUtils.isEmpty(options)) {
-            return;
+        // Create them
+        createInBatch(optionsToCreate);
+
+        if (!CollectionUtils.isEmpty(optionsToUpdate) || !CollectionUtils.isEmpty(optionsToCreate)) {
+            // If there is something changed
+            publishOptionUpdatedEvent();
         }
 
-        // TODO Optimize the queries
-        options.forEach((key, value) -> save(key, value, source));
     }
 
     @Override
-    public void save(List<OptionParam> optionParams, OptionSource source) {
+    public void save(List<OptionParam> optionParams) {
         if (CollectionUtils.isEmpty(optionParams)) {
             return;
         }
 
-        // TODO Optimize the query
-        optionParams.forEach(optionParam -> save(optionParam.getOptionKey(), optionParam.getOptionValue(), source));
+        Map<String, Object> optionMap = ServiceUtils.convertToMap(optionParams, OptionParam::getKey, OptionParam::getValue);
+        save(optionMap);
     }
 
     @Override
-    public void saveProperties(Map<? extends PropertyEnum, String> properties, OptionSource source) {
+    public void save(OptionParam optionParam) {
+        Option option = optionParam.convertTo();
+        create(option);
+        publishOptionUpdatedEvent();
+    }
+
+    @Override
+    public void update(Integer optionId, OptionParam optionParam) {
+        Option optionToUpdate = getById(optionId);
+        optionParam.update(optionToUpdate);
+        update(optionToUpdate);
+        publishOptionUpdatedEvent();
+    }
+
+    @Override
+    public void saveProperty(PropertyEnum property, String value) {
+        Assert.notNull(property, "Property must not be null");
+
+        save(property.getValue(), value);
+    }
+
+    @Override
+    public void saveProperties(Map<? extends PropertyEnum, String> properties) {
         if (CollectionUtils.isEmpty(properties)) {
             return;
         }
 
-        properties.forEach((property, value) -> save(property.getValue(), value, source));
-    }
+        Map<String, Object> optionMap = new LinkedHashMap<>();
 
-    /**
-     * Gets all options
-     *
-     * @return Map
-     */
-    @Override
-    public Map<String, String> listOptions() {
-        return ServiceUtils.convertToMap(listAll(), Option::getOptionKey, Option::getOptionValue);
+        properties.forEach((property, value) -> optionMap.put(property.getValue(), value));
+
+        save(optionMap);
     }
 
     @Override
-    public List<OptionOutputDTO> listDtos() {
-        return listAll().stream().map(option -> new OptionOutputDTO().<OptionOutputDTO>convertFrom(option)).collect(Collectors.toList());
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> listOptions() {
+        // Get options from cache
+        return cacheStore.getAny(OPTIONS_KEY, Map.class).orElseGet(() -> {
+            List<Option> options = listAll();
+
+            Set<String> keys = ServiceUtils.fetchProperty(options, Option::getKey);
+
+            Map<String, Object> userDefinedOptionMap = ServiceUtils.convertToMap(options, Option::getKey, option -> {
+                String key = option.getKey();
+
+                PropertyEnum propertyEnum = propertyEnumMap.get(key);
+
+                if (propertyEnum == null) {
+                    return option.getValue();
+                }
+
+                return PropertyEnum.convertTo(option.getValue(), propertyEnum);
+            });
+
+            Map<String, Object> result = new HashMap<>(userDefinedOptionMap);
+
+            // Add default property
+            propertyEnumMap.keySet()
+                    .stream()
+                    .filter(key -> !keys.contains(key))
+                    .forEach(key -> {
+                        PropertyEnum propertyEnum = propertyEnumMap.get(key);
+
+                        if (StringUtils.isBlank(propertyEnum.defaultValue())) {
+                            return;
+                        }
+
+                        result.put(key, PropertyEnum.convertTo(propertyEnum.defaultValue(), propertyEnum));
+                    });
+
+            // Cache the result
+            cacheStore.putAny(OPTIONS_KEY, result);
+
+            return result;
+        });
     }
 
-    /**
-     * Gets option by key
-     *
-     * @param key key
-     * @return String
-     */
     @Override
-    public String getByKeyOfNullable(String key) {
+    public Map<String, Object> listOptions(List<String> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> optionMap = listOptions();
+
+        Map<String, Object> result = new HashMap<>(keys.size());
+
+        keys.stream()
+                .filter(optionMap::containsKey)
+                .forEach(key -> result.put(key, optionMap.get(key)));
+
+        return result;
+    }
+
+    @Override
+    public List<OptionDTO> listDtos() {
+        List<OptionDTO> result = new LinkedList<>();
+
+        listOptions().forEach((key, value) -> result.add(new OptionDTO(key, value)));
+
+        return result;
+    }
+
+    @Override
+    public Page<OptionSimpleDTO> pageDtosBy(Pageable pageable, OptionQuery optionQuery) {
+        Assert.notNull(pageable, "Page info must not be null");
+
+        Page<Option> optionPage = optionRepository.findAll(buildSpecByQuery(optionQuery), pageable);
+
+        return optionPage.map(this::convertToDto);
+    }
+
+    @Override
+    public Option removePermanently(Integer id) {
+        Option deletedOption = removeById(id);
+        publishOptionUpdatedEvent();
+        return deletedOption;
+    }
+
+    @NonNull
+    private Specification<Option> buildSpecByQuery(@NonNull OptionQuery optionQuery) {
+        Assert.notNull(optionQuery, "Option query must not be null");
+
+        return (Specification<Option>) (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new LinkedList<>();
+
+            if (optionQuery.getType() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("type"), optionQuery.getType()));
+            }
+
+            if (optionQuery.getKeyword() != null) {
+
+                String likeCondition = String.format("%%%s%%", StringUtils.strip(optionQuery.getKeyword()));
+
+                Predicate keyLike = criteriaBuilder.like(root.get("key"), likeCondition);
+
+                Predicate valueLike = criteriaBuilder.like(root.get("value"), likeCondition);
+
+                predicates.add(criteriaBuilder.or(keyLike, valueLike));
+            }
+
+            return query.where(predicates.toArray(new Predicate[0])).getRestriction();
+        };
+    }
+
+    @Override
+    public Object getByKeyOfNullable(String key) {
         return getByKey(key).orElse(null);
     }
 
     @Override
-    public String getByKeyOfNonNull(String key) {
+    public Object getByKeyOfNonNull(String key) {
         return getByKey(key).orElseThrow(() -> new MissingPropertyException("You have to config " + key + " setting"));
     }
 
     @Override
-    public Optional<String> getByKey(String key) {
+    public Optional<Object> getByKey(String key) {
         Assert.hasText(key, "Option key must not be blank");
 
-        return optionRepository.findByOptionKey(key).map(Option::getOptionValue);
+        return Optional.ofNullable(listOptions().get(key));
     }
 
     @Override
-    public String getByPropertyOfNullable(PropertyEnum property) {
+    public Object getByPropertyOfNullable(PropertyEnum property) {
         return getByProperty(property).orElse(null);
     }
 
     @Override
-    public String getByPropertyOfNonNull(PropertyEnum property) {
+    public Object getByPropertyOfNonNull(PropertyEnum property) {
         Assert.notNull(property, "Blog property must not be null");
 
         return getByKeyOfNonNull(property.getValue());
     }
 
     @Override
-    public Optional<String> getByProperty(PropertyEnum property) {
+    public Optional<Object> getByProperty(PropertyEnum property) {
         Assert.notNull(property, "Blog property must not be null");
 
         return getByKey(property.getValue());
@@ -177,7 +322,7 @@ public class OptionServiceImpl extends AbstractCrudService<Option, Integer> impl
 
     @Override
     public <T> Optional<T> getByProperty(PropertyEnum property, Class<T> propertyType) {
-        return getByProperty(property).map(propertyValue -> PropertyEnum.convertTo(propertyValue, propertyType));
+        return getByProperty(property).map(propertyValue -> PropertyEnum.convertTo(propertyValue.toString(), propertyType));
     }
 
     @Override
@@ -187,12 +332,12 @@ public class OptionServiceImpl extends AbstractCrudService<Option, Integer> impl
 
     @Override
     public <T> Optional<T> getByKey(String key, Class<T> valueType) {
-        return getByKey(key).map(value -> PropertyEnum.convertTo(value, valueType));
+        return getByKey(key).map(value -> PropertyEnum.convertTo(value.toString(), valueType));
     }
 
     @Override
     public <T extends Enum<T>> Optional<T> getEnumByProperty(PropertyEnum property, Class<T> valueType) {
-        return getByProperty(property).map(value -> PropertyEnum.convertToEnum(value, valueType));
+        return getByProperty(property).map(value -> PropertyEnum.convertToEnum(value.toString(), valueType));
     }
 
     @Override
@@ -202,7 +347,7 @@ public class OptionServiceImpl extends AbstractCrudService<Option, Integer> impl
 
     @Override
     public <V, E extends ValueEnum<V>> Optional<E> getValueEnumByProperty(PropertyEnum property, Class<V> valueType, Class<E> enumType) {
-        return getByProperty(property).map(value -> ValueEnum.valueToEnum(enumType, PropertyEnum.convertTo(value, valueType)));
+        return getByProperty(property).map(value -> ValueEnum.valueToEnum(enumType, PropertyEnum.convertTo(value.toString(), valueType)));
     }
 
     @Override
@@ -242,10 +387,10 @@ public class OptionServiceImpl extends AbstractCrudService<Option, Integer> impl
 
     @Override
     public Zone getQnYunZone() {
-        return getByProperty(QnYunProperties.ZONE).map(qiniuZone -> {
+        return getByProperty(QiniuOssProperties.OSS_ZONE).map(qiniuZone -> {
 
             Zone zone;
-            switch (qiniuZone) {
+            switch (qiniuZone.toString()) {
                 case "z0":
                     zone = Zone.zone0();
                     break;
@@ -274,11 +419,62 @@ public class OptionServiceImpl extends AbstractCrudService<Option, Integer> impl
     public Locale getLocale() {
         return getByProperty(BlogProperties.BLOG_LOCALE).map(localeStr -> {
             try {
-                return Locale.forLanguageTag(localeStr);
+                return Locale.forLanguageTag(localeStr.toString());
             } catch (Exception e) {
                 return Locale.getDefault();
             }
         }).orElseGet(Locale::getDefault);
     }
 
+    @Override
+    public String getBlogBaseUrl() {
+        // Get server port
+        String serverPort = applicationContext.getEnvironment().getProperty("server.port", "8080");
+
+        String blogUrl = getByProperty(BlogProperties.BLOG_URL).orElse("").toString();
+
+        if (StrUtil.isNotBlank(blogUrl)) {
+            blogUrl = StrUtil.removeSuffix(blogUrl, "/");
+        } else {
+            if (haloProperties.isProductionEnv()) {
+                blogUrl = String.format("http://%s:%s", "127.0.0.1", serverPort);
+            } else {
+                blogUrl = String.format("http://%s:%s", HaloUtils.getMachineIP(), serverPort);
+            }
+        }
+
+        return blogUrl;
+    }
+
+    @Override
+    public String getBlogTitle() {
+        return getByProperty(BlogProperties.BLOG_TITLE).orElse("").toString();
+    }
+
+    @Override
+    public long getBirthday() {
+        return getByProperty(PrimaryProperties.BIRTHDAY, Long.class).orElseGet(() -> {
+            long currentTime = DateUtils.now().getTime();
+            saveProperty(PrimaryProperties.BIRTHDAY, String.valueOf(currentTime));
+            return currentTime;
+        });
+    }
+
+    @Override
+    public OptionSimpleDTO convertToDto(Option option) {
+        Assert.notNull(option, "Option must not be null");
+
+        return new OptionSimpleDTO().convertFrom(option);
+    }
+
+    private void cleanCache() {
+        cacheStore.delete(OPTIONS_KEY);
+    }
+
+    private void publishOptionUpdatedEvent() {
+        flush();
+        cleanCache();
+        eventPublisher.publishEvent(new OptionUpdatedEvent(this));
+    }
 }
+

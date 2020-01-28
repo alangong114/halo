@@ -1,8 +1,16 @@
 package run.halo.app.config.properties;
 
-import run.halo.app.model.support.HaloConst;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Duration;
+
+import static run.halo.app.model.support.HaloConst.*;
+import static run.halo.app.utils.HaloUtils.ensureSuffix;
+
 
 /**
  * Halo configuration properties.
@@ -16,20 +24,46 @@ public class HaloProperties {
     /**
      * Doc api disabled. (Default is true)
      */
-    private Boolean docDisabled = true;
+    private boolean docDisabled = true;
 
     /**
      * Production env. (Default is true)
      */
-    private Boolean productionEnv = true;
+    private boolean productionEnv = true;
 
     /**
      * Authentication enabled
      */
-    private Boolean authEnabled = true;
+    private boolean authEnabled = true;
+
+    /**
+     * Admin path.
+     */
+    private String adminPath = "admin";
 
     /**
      * Work directory.
      */
-    private String workDir = HaloConst.USER_HOME + "/halo/";
+    private String workDir = ensureSuffix(USER_HOME, FILE_SEPARATOR) + ".halo" + FILE_SEPARATOR;
+
+    /**
+     * Halo backup directory.(Not recommended to modify this config);
+     */
+    private String backupDir = ensureSuffix(TEMP_DIR, FILE_SEPARATOR) + "halo-backup" + FILE_SEPARATOR;
+
+    /**
+     * Upload prefix.
+     */
+    private String uploadUrlPrefix = "upload";
+
+    /**
+     * Download Timeout.
+     */
+    private Duration downloadTimeout = Duration.ofSeconds(30);
+
+    public HaloProperties() throws IOException {
+        // Create work directory if not exist
+        Files.createDirectories(Paths.get(workDir));
+        Files.createDirectories(Paths.get(backupDir));
+    }
 }

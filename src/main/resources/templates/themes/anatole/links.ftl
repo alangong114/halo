@@ -1,5 +1,5 @@
 <#include "module/macro.ftl">
-<@head title="友情链接 · ${options.blog_title!'Halo'}" keywords="${options.seo_keywords!'Halo'}" description="${options.seo_desc!'Halo'}"></@head>
+<@head title="友情链接 · ${options.blog_title!}" keywords="${options.seo_keywords!}" description="${options.seo_description!}" />
 <#include "module/sidebar.ftl">
 <div class="main">
     <#include "module/page-top.ftl">
@@ -11,18 +11,18 @@
                         <h3><a>links</a></h3>
                     </div>
                     <div class="post-content">
-                        <@commonTag method="links">
+                        <@linkTag method="list">
                             <#if links?? && links?size gt 0>
                                 <#list links as link>
-                                <p>
-                                    <a href="${link.url}" target="_blank" rel="external">${link.name}</a>
-                                    <#if link.description!=''>
-                                         – ${link.description}
-                                    </#if>
-                                </p>
+                                    <p>
+                                        <a href="${link.url}" target="_blank" rel="external">${link.name}</a>
+                                        <#if link.description!=''>
+                                            – ${link.description}
+                                        </#if>
+                                    </p>
                                 </#list>
                             </#if>
-                        </@commonTag>
+                        </@linkTag>
                     </div>
                 </div>
             </div>

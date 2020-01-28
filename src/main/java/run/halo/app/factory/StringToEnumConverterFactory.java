@@ -5,8 +5,8 @@ import org.springframework.core.convert.converter.ConverterFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * @author : RYAN0UP
- * @date : 2019/3/14
+ * @author ryanwang
+ * @date 2019-3-14
  */
 @Component
 public class StringToEnumConverterFactory implements ConverterFactory<String, Enum> {

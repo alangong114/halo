@@ -1,38 +1,7 @@
 <#include "module/macro.ftl">
-<@head title="${post.title!} · ${options.blog_title!'Halo'}" keywords="${post.title!},${options.seo_keywords!'Halo'},${tagWords!}" description="${post.summary!'Halo'}"></@head>
+<@head title="${post.title!} · ${options.blog_title!}" keywords="${post.title!},${options.seo_keywords!},${tagWords!}" description="${post.summary!}" />
 <#include "module/sidebar.ftl">
 <div class="main">
-    <link href="/anatole/source/plugins/prism/prism.css" type="text/css" rel="stylesheet" />
-    <style>
-        code, tt {
-            font-size: 1.2em;
-        }
-        table {
-            border-spacing: 0;
-            border-collapse: collapse;
-            margin-top: 0;
-            margin-bottom: 16px;
-            display: block;
-            width: 100%;
-            overflow: auto;
-
-        }
-        table th {
-            font-weight: 600;
-        }
-        table th,
-        table td {
-            padding: 6px 13px;
-            border: 1px solid #dfe2e5;
-        }
-        table tr {
-            background-color: #fff;
-            border-top: 1px solid #c6cbd1;
-        }
-        table tr:nth-child(2n) {
-            background-color: #f6f8fa;
-        }
-    </style>
     <#include "module/page-top.ftl">
     <div class="autopagerize_page_element">
         <div class="content">
@@ -52,11 +21,11 @@
                                 <i class="fa fa-sun-o"></i>
                                 <span class="date">${post.createTime?string("yyyy-MM-dd")}</span>
                                 <i class="fa fa-comment-o"></i>
-                                <a href="${options.blog_url!}/archives/${post.url}#comment_widget">Comments</a>
-                                <#if post.tags?size gt 0>
+                                <a href="${context!}/archives/${post.url}#comment_widget">Comments</a>
+                                <#if tags?size gt 0>
                                     <i class="fa fa-tag"></i>
-                                    <#list post.tags as tag>
-                                        <a href="${options.blog_url!}/tags/${tag.slugName}" class="tag">&nbsp;${tag.name}</a>
+                                    <#list tags as tag>
+                                        <a href="${context!}/tags/${tag.slugName}" class="tag">&nbsp;${tag.name}</a>
                                     </#list>
                                 </#if>
                             </div>
@@ -73,30 +42,30 @@
                            class="fa fa-weibo"></a>
                     </div>
                     <div class="twitter">
-                        <a href="http://twitter.com/home?status=${options.blog_url}/archives/${post.url} ,${options.blog_title!},${post.title},;"
+                        <a href="http://twitter.com/home?status=${context!}/archives/${post.url} ,${options.blog_title!},${post.title},;"
                            class="fa fa-twitter"></a>
                     </div>
                 </div>
                 <div class="pagination">
                     <ul class="clearfix">
                         <#if nextPost??>
-                        <li class="pre pagbuttons">
-                            <a class="btn" role="navigation" href="${options.blog_url!}/archives/${nextPost.url}" title="${nextPost.title}">上一篇</a>
-                        </li>
+                            <li class="next pagbuttons">
+                                <a class="btn" role="navigation" href="${context!}/archives/${nextPost.url}" title="${nextPost.title}">下一篇</a>
+                            </li>
                         </#if>
                         <#if prePost??>
-                        <li class="next pagbuttons">
-                            <a class="btn" role="navigation" href="${options.blog_url!}/archives/${prePost.url}" title="${prePost.title}">下一篇</a>
-                        </li>
+                            <li class="pre pagbuttons">
+                                <a class="btn" role="navigation" href="${context!}/archives/${prePost.url}" title="${prePost.title}">上一篇</a>
+                            </li>
                         </#if>
                     </ul>
                 </div>
-                <div id="comment_widget">
+                <div id="comment_widget" style="margin: 30px;">
                     <#include "module/comment.ftl">
+                    <@comment post=post type="post" />
                 </div>
             </div>
         </div>
     </div>
 </div>
-<script type="text/javascript" src="/anatole/source/plugins/prism/prism.js"></script>
 <@footer></@footer>

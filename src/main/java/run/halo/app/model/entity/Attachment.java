@@ -1,11 +1,8 @@
 package run.halo.app.model.entity;
 
-import run.halo.app.model.enums.AttachmentType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 import run.halo.app.model.enums.AttachmentType;
 
 import javax.persistence.*;
@@ -13,14 +10,12 @@ import javax.persistence.*;
 /**
  * Attachment entity
  *
- * @author : RYAN0UP
- * @date : 2019-03-12
+ * @author ryanwang
+ * @date 2019-03-12
  */
 @Data
 @Entity
 @Table(name = "attachments")
-@SQLDelete(sql = "update attachments set deleted = true where id = ?")
-@Where(clause = "deleted = false")
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class Attachment extends BaseEntity {
@@ -57,11 +52,11 @@ public class Attachment extends BaseEntity {
     /**
      * Attachment media type.
      */
-    @Column(name = "media_type", columnDefinition = "varchar(50) not null")
+    @Column(name = "media_type", columnDefinition = "varchar(127) not null")
     private String mediaType;
 
     /**
-     * Attachment suffix,such as .png,.jpg
+     * Attachment suffix,such as png, zip, mp4, jpge.
      */
     @Column(name = "suffix", columnDefinition = "varchar(50) default ''")
     private String suffix;
@@ -93,7 +88,6 @@ public class Attachment extends BaseEntity {
     @Override
     public void prePersist() {
         super.prePersist();
-        id = null;
 
         if (fileKey == null) {
             fileKey = "";

@@ -1,12 +1,10 @@
 package run.halo.app.model.entity;
 
 
-import run.halo.app.model.enums.LogType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
+import run.halo.app.model.enums.LogType;
 
 import javax.persistence.*;
 
@@ -15,11 +13,9 @@ import javax.persistence.*;
  *
  * @author johnniang
  */
+@Data
 @Entity
 @Table(name = "logs")
-@SQLDelete(sql = "update logs set deleted = true where id = ?")
-@Where(clause = "deleted = false")
-@Data
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class Log extends BaseEntity {
@@ -57,5 +53,17 @@ public class Log extends BaseEntity {
     public void prePersist() {
         super.prePersist();
         id = null;
+
+        if (logKey == null) {
+            logKey = "";
+        }
+
+        // Get ip address
+        // ###!!! Do not get request IP from here due to asynchronous
+        // ipAddress = ServletUtils.getRequestIp();
+
+        if (ipAddress == null) {
+            logKey = "";
+        }
     }
 }

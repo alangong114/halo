@@ -3,22 +3,18 @@ package run.halo.app.model.entity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
 
 /**
  * Tag entity
  *
- * @author : RYAN0UP
- * @date : 2019-03-12
+ * @author ryanwang
+ * @date 2019-03-12
  */
 @Data
 @Entity
-@Table(name = "tags", indexes = @Index(columnList = "slug_name"))
-@SQLDelete(sql = "update tags set deleted = true where id = ?")
-@Where(clause = "deleted = false")
+@Table(name = "tags")
 @ToString
 @EqualsAndHashCode(callSuper = true)
 public class Tag extends BaseEntity {
@@ -37,7 +33,7 @@ public class Tag extends BaseEntity {
     /**
      * Tag slug name.
      */
-    @Column(name = "slug_name", columnDefinition = "varchar(255) not null")
+    @Column(name = "slug_name", columnDefinition = "varchar(255) not null", unique = true)
     private String slugName;
 
     @Override

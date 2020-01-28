@@ -1,11 +1,13 @@
 package run.halo.app.repository;
 
-import run.halo.app.model.entity.PostTag;
-import run.halo.app.model.projection.TagPostCountProjection;
-import run.halo.app.repository.base.BaseRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.lang.NonNull;
+import run.halo.app.model.entity.PostTag;
+import run.halo.app.model.enums.PostStatus;
+import run.halo.app.model.projection.TagPostPostCountProjection;
+import run.halo.app.repository.base.BaseRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -14,6 +16,8 @@ import java.util.Set;
  * Post tag repository.
  *
  * @author johnniang
+ * @author ryanwang
+ * @date 2019-03-19
  */
 public interface PostTagRepository extends BaseRepository<PostTag, Integer> {
 
@@ -56,13 +60,24 @@ public interface PostTagRepository extends BaseRepository<PostTag, Integer> {
     Set<Integer> findAllPostIdsByTagId(@NonNull Integer tagId);
 
     /**
+     * Finds all post id by tag id and post status.
+     *
+     * @param tagId  tag id must not be null
+     * @param status post status
+     * @return a set of post id
+     */
+    @Query("select postTag.postId from PostTag postTag,Post post where postTag.tagId = ?1 and post.id = postTag.postId and post.status = ?2")
+    @NonNull
+    Set<Integer> findAllPostIdsByTagId(@NonNull Integer tagId, @NonNull PostStatus status);
+
+    /**
      * Finds all tags by post id in.
      *
      * @param postIds post id collection
      * @return a list of post tags
      */
     @NonNull
-    List<PostTag> findAllByPostIdIn(@NonNull Iterable<Integer> postIds);
+    List<PostTag> findAllByPostIdIn(@NonNull Collection<Integer> postIds);
 
     /**
      * Deletes post tags by post id.
@@ -88,16 +103,16 @@ public interface PostTagRepository extends BaseRepository<PostTag, Integer> {
      * @param tagIds tag id collection must not be null
      * @return a list of tag post count projection
      */
-    @Query("select new run.halo.app.model.projection.TagPostCountProjection(count(pt.postId), pt.tagId) from PostTag pt where pt.tagId in ?1 group by pt.tagId")
+    @Query("select new run.halo.app.model.projection.TagPostPostCountProjection(count(pt.postId), pt.tagId) from PostTag pt where pt.tagId in ?1 group by pt.tagId")
     @NonNull
-    List<TagPostCountProjection> findPostCountByTagIds(@NonNull Iterable<Integer> tagIds);
+    List<TagPostPostCountProjection> findPostCountByTagIds(@NonNull Collection<Integer> tagIds);
 
     /**
      * Finds post count of tag.
      *
      * @return a list of tag post count projection
      */
-    @Query("select new run.halo.app.model.projection.TagPostCountProjection(count(pt.postId), pt.tagId) from PostTag pt group by pt.tagId")
+    @Query("select new run.halo.app.model.projection.TagPostPostCountProjection(count(pt.postId), pt.tagId) from PostTag pt group by pt.tagId")
     @NonNull
-    List<TagPostCountProjection> findPostCount();
+    List<TagPostPostCountProjection> findPostCount();
 }

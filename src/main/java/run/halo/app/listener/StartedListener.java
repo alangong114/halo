@@ -1,59 +1,39 @@
 package run.halo.app.listener;
 
-import run.halo.app.config.properties.HaloProperties;
-import run.halo.app.model.entity.User;
-import run.halo.app.model.params.UserParam;
-import run.halo.app.model.properties.BlogProperties;
-import run.halo.app.model.properties.PrimaryProperties;
-import run.halo.app.model.support.HaloConst;
-import run.halo.app.model.support.Theme;
-import run.halo.app.service.OptionService;
-import run.halo.app.service.ThemeService;
-import run.halo.app.service.UserService;
-import run.halo.app.utils.HaloUtils;
-import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.util.StrUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import freemarker.template.TemplateModelException;
 import lombok.extern.slf4j.Slf4j;
+import org.flywaydb.core.Flyway;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.lang.NonNull;
+import org.springframework.util.Assert;
 import org.springframework.util.ResourceUtils;
-import run.halo.app.model.entity.User;
-import run.halo.app.model.params.UserParam;
-import run.halo.app.model.properties.BlogProperties;
+import run.halo.app.config.properties.HaloProperties;
 import run.halo.app.model.properties.PrimaryProperties;
-import run.halo.app.model.support.Theme;
+import run.halo.app.service.OptionService;
 import run.halo.app.service.ThemeService;
-import run.halo.app.utils.HaloUtils;
+import run.halo.app.utils.FileUtils;
 
-import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.nio.file.*;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
-import static run.halo.app.model.support.HaloConst.ACTIVATED_THEME_NAME;
-import static run.halo.app.model.support.HaloConst.DEFAULT_THEME_NAME;
 
 /**
  * The method executed after the application is started.
  *
- * @author : RYAN0UP
- * @date : 2018/12/5
+ * @author ryanwang
+ * @author guqing
+ * @date 2018-12-05
  */
 @Slf4j
 @Configuration
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class StartedListener implements ApplicationListener<ApplicationStartedEvent> {
-
-    @Autowired
-    private freemarker.template.Configuration configuration;
-
-    @Autowired
-    private ApplicationContext applicationContext;
 
     @Autowired
     private HaloProperties haloProperties;
@@ -62,118 +42,49 @@ public class StartedListener implements ApplicationListener<ApplicationStartedEv
     private OptionService optionService;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     private ThemeService themeService;
 
-    @Autowired
-    private UserService userService;
+    @Value("${spring.datasource.url}")
+    private String url;
+
+    @Value("${spring.datasource.username}")
+    private String username;
+
+    @Value("${spring.datasource.password}")
+    private String password;
 
     @Override
     public void onApplicationEvent(ApplicationStartedEvent event) {
-        // save halo version to database
-        this.cacheThemes();
-        this.cacheOwo();
-        this.getActiveTheme();
-        this.printStartInfo();
+        this.migrate();
         this.initThemes();
-
-        // Init user in development environment
-        if (!haloProperties.getProductionEnv()) {
-            initAnTestUserIfAbsent();
-        }
-    }
-
-    /**
-     * Initialize an test user if absent
-     */
-    private void initAnTestUserIfAbsent() {
-        // Create an user if absent
-        List<User> users = userService.listAll();
-
-        if (users.isEmpty()) {
-            UserParam userParam = new UserParam();
-            userParam.setUsername("test");
-            userParam.setNickname("developer");
-            userParam.setEmail("test@test.com");
-
-            log.debug("Initializing a test user: [{}]", userParam);
-
-            User testUser = userService.createBy(userParam, "opentest");
-
-            log.debug("Initialized a test user: [{}]", testUser);
-        }
-    }
-
-    /**
-     * Cache themes to map
-     */
-    private void cacheThemes() {
-        final List<Theme> themes = themeService.getThemes();
-        if (null != themes) {
-            HaloConst.THEMES = themes;
-        }
-    }
-
-    /**
-     * Get active theme
-     */
-    private void getActiveTheme() {
-        ACTIVATED_THEME_NAME = optionService.getByProperty(PrimaryProperties.THEME).orElse(DEFAULT_THEME_NAME);
-
-        try {
-            configuration.setSharedVariable("themeName", ACTIVATED_THEME_NAME);
-        } catch (TemplateModelException e) {
-            e.printStackTrace();
-        }
+        this.printStartInfo();
     }
 
     private void printStartInfo() {
-        String blogUrl = getBaseUrl();
+        String blogUrl = optionService.getBlogBaseUrl();
 
         log.info("Halo started at         {}", blogUrl);
-        // TODO admin may be changeable
-        log.info("Halo admin started at   {}/admin", blogUrl);
-        if (!haloProperties.getDocDisabled()) {
-            log.debug("Halo doc was enable at  {}/swagger-ui.html", blogUrl);
+        log.info("Halo admin started at   {}/{}", blogUrl, haloProperties.getAdminPath());
+        if (!haloProperties.isDocDisabled()) {
+            log.debug("Halo api doc was enabled at  {}/swagger-ui.html", blogUrl);
         }
+        log.info("Halo has started successfully!");
     }
 
     /**
-     * Gets blog url.
-     *
-     * @return blog url (If blog url isn't present, current machine IP address will be default)
+     * Migrate database.
      */
-    private String getBaseUrl() {
-        // Get server port
-        String serverPort = applicationContext.getEnvironment().getProperty("server.port", "8080");
-
-        String blogUrl = optionService.getByPropertyOfNullable(BlogProperties.BLOG_URL);
-
-        if (StrUtil.isNotBlank(blogUrl)) {
-            blogUrl = StrUtil.removeSuffix(blogUrl, "/");
-        } else {
-            blogUrl = String.format("http://%s:%s", HaloUtils.getMachineIP(), serverPort);
-        }
-
-        return blogUrl;
-    }
-
-    /**
-     * Cache Owo
-     */
-    private void cacheOwo() {
-        try {
-            // The Map is LinkedHashMap
-            @SuppressWarnings("unchecked")
-            Map<String, String> owoMap = objectMapper.readValue(ResourceUtils.getURL("classpath:static/halo-common/OwO/OwO.path.json"), Map.class);
-
-            HaloConst.OWO_MAP = Collections.unmodifiableMap(owoMap);
-        } catch (IOException e) {
-            log.error("Failed to read owo json", e);
-            // TODO Consider to throw an exception
-        }
+    private void migrate() {
+        log.info("Starting migrate database...");
+        Flyway flyway = Flyway
+                .configure()
+                .locations("classpath:/migration")
+                .baselineVersion("1")
+                .baselineOnMigrate(true)
+                .dataSource(url, username, password)
+                .load();
+        flyway.migrate();
+        log.info("Migrate database succeed.");
     }
 
     /**
@@ -183,20 +94,50 @@ public class StartedListener implements ApplicationListener<ApplicationStartedEv
         // Whether the blog has initialized
         Boolean isInstalled = optionService.getByPropertyOrDefault(PrimaryProperties.IS_INSTALLED, Boolean.class, false);
         try {
-            if (isInstalled) {
-                // Skip
-                return;
+            String themeClassPath = ResourceUtils.CLASSPATH_URL_PREFIX + ThemeService.THEME_FOLDER;
+
+            URI themeUri = ResourceUtils.getURL(themeClassPath).toURI();
+
+            log.debug("Theme uri: [{}]", themeUri);
+
+            Path source;
+
+            if ("jar".equalsIgnoreCase(themeUri.getScheme())) {
+
+                // Create new file system for jar
+                FileSystem fileSystem = getFileSystem(themeUri);
+                source = fileSystem.getPath("/BOOT-INF/classes/" + ThemeService.THEME_FOLDER);
+            } else {
+                source = Paths.get(themeUri);
             }
 
-            File internalThemePath = new File(ResourceUtils.getURL(ResourceUtils.CLASSPATH_URL_PREFIX).getPath(), "templates/themes");
-            File[] internalThemes = internalThemePath.listFiles();
-            if (null != internalThemes) {
-                for (File theme : internalThemes) {
-                    FileUtil.copy(theme, themeService.getThemeBasePath(), true);
-                }
+            // Create theme folder
+            Path themePath = themeService.getBasePath();
+
+            // Fix the problem that the project cannot start after moving to a new server
+            if (!haloProperties.isProductionEnv() || Files.notExists(themePath) || !isInstalled) {
+                FileUtils.copyFolder(source, themePath);
+                log.debug("Copied theme folder from [{}] to [{}]", source, themePath);
+            } else {
+                log.debug("Skipped copying theme folder due to existence of theme folder");
             }
         } catch (Exception e) {
-            throw new RuntimeException("Init internal theme to user path error", e);
+            throw new RuntimeException("Initialize internal theme to user path error", e);
         }
+    }
+
+    @NonNull
+    private FileSystem getFileSystem(@NonNull URI uri) throws IOException {
+        Assert.notNull(uri, "Uri must not be null");
+
+        FileSystem fileSystem;
+
+        try {
+            fileSystem = FileSystems.getFileSystem(uri);
+        } catch (FileSystemNotFoundException e) {
+            fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+        }
+
+        return fileSystem;
     }
 }

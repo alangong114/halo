@@ -1,22 +1,29 @@
 package run.halo.app.service;
 
-import run.halo.app.model.dto.LinkOutputDTO;
+import org.springframework.data.domain.Sort;
+import org.springframework.lang.NonNull;
+import run.halo.app.model.dto.LinkDTO;
 import run.halo.app.model.entity.Link;
 import run.halo.app.model.params.LinkParam;
 import run.halo.app.model.vo.LinkTeamVO;
-import run.halo.app.service.base.CrudService;
-import org.springframework.data.domain.Sort;
-import org.springframework.lang.NonNull;
 import run.halo.app.service.base.CrudService;
 
 import java.util.List;
 
 /**
- * Link service.
+ * Link service interface.
  *
  * @author johnniang
+ * @author ryanwang
+ * @date 2019-03-14
  */
 public interface LinkService extends CrudService<Link, Integer> {
+
+    String META_NAME = "name";
+
+    String META_DESCRIPTION = "description";
+
+    String META_CONTENT = "content";
 
     /**
      * List link dtos.
@@ -25,15 +32,7 @@ public interface LinkService extends CrudService<Link, Integer> {
      * @return all links
      */
     @NonNull
-    List<LinkOutputDTO> listDtos(@NonNull Sort sort);
-
-    /**
-     * List link by group
-     *
-     * @return a list of link team vo
-     */
-    @NonNull
-    List<LinkTeamVO> listTeamVos();
+    List<LinkDTO> listDtos(@NonNull Sort sort);
 
     /**
      * Lists link team vos.
@@ -60,4 +59,19 @@ public interface LinkService extends CrudService<Link, Integer> {
      * @return true if exists; false otherwise
      */
     boolean existByName(String name);
+
+    /**
+     * List all link teams.
+     *
+     * @return a list of teams.
+     */
+    List<String> listAllTeams();
+
+    /**
+     * Get link by parse url.
+     *
+     * @param url url must not be null
+     * @return link dto
+     */
+    LinkDTO getByParse(@NonNull String url);
 }

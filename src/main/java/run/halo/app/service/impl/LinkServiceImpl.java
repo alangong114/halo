@@ -1,14 +1,8 @@
 package run.halo.app.service.impl;
 
-import run.halo.app.exception.AlreadyExistsException;
-import run.halo.app.model.dto.LinkOutputDTO;
-import run.halo.app.model.entity.Link;
-import run.halo.app.model.params.LinkParam;
-import run.halo.app.model.vo.LinkTeamVO;
-import run.halo.app.repository.LinkRepository;
-import run.halo.app.service.LinkService;
-import run.halo.app.service.base.AbstractCrudService;
-import run.halo.app.utils.ServiceUtils;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.NonNull;
@@ -17,17 +11,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 import run.halo.app.exception.AlreadyExistsException;
+import run.halo.app.exception.BadRequestException;
+import run.halo.app.model.dto.LinkDTO;
+import run.halo.app.model.entity.Link;
+import run.halo.app.model.params.LinkParam;
+import run.halo.app.model.vo.LinkTeamVO;
 import run.halo.app.repository.LinkRepository;
+import run.halo.app.service.LinkService;
 import run.halo.app.service.base.AbstractCrudService;
+import run.halo.app.utils.ServiceUtils;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * LinkService implementation class
  *
- * @author : RYAN0UP
- * @date : 2019-03-14
+ * @author ryanwang
+ * @date 2019-03-14
  */
 @Service
 public class LinkServiceImpl extends AbstractCrudService<Link, Integer> implements LinkService {
@@ -39,28 +41,11 @@ public class LinkServiceImpl extends AbstractCrudService<Link, Integer> implemen
         this.linkRepository = linkRepository;
     }
 
-    /**
-     * List link dtos.
-     *
-     * @param sort sort
-     * @return all links
-     */
     @Override
-    public List<LinkOutputDTO> listDtos(Sort sort) {
+    public List<LinkDTO> listDtos(Sort sort) {
         Assert.notNull(sort, "Sort info must not be null");
 
         return convertTo(listAll(sort));
-    }
-
-    /**
-     * List link by group
-     *
-     * @return List<LinkTeamVO>
-     */
-    @Override
-    public List<LinkTeamVO> listTeamVos() {
-        // TODO list team
-        return null;
     }
 
     @Override
@@ -68,13 +53,13 @@ public class LinkServiceImpl extends AbstractCrudService<Link, Integer> implemen
         Assert.notNull(sort, "Sort info must not be null");
 
         // List all links
-        List<LinkOutputDTO> links = listDtos(sort);
+        List<LinkDTO> links = listDtos(sort);
 
         // Get teams
-        Set<String> teams = ServiceUtils.fetchProperty(links, LinkOutputDTO::getTeam);
+        Set<String> teams = ServiceUtils.fetchProperty(links, LinkDTO::getTeam);
 
         // Convert to team link list map (Key: team, value: link list)
-        Map<String, List<LinkOutputDTO>> teamLinkListMap = ServiceUtils.convertToListMap(teams, links, LinkOutputDTO::getTeam);
+        Map<String, List<LinkDTO>> teamLinkListMap = ServiceUtils.convertToListMap(teams, links, LinkDTO::getTeam);
 
         List<LinkTeamVO> result = new LinkedList<>();
 
@@ -100,7 +85,7 @@ public class LinkServiceImpl extends AbstractCrudService<Link, Integer> implemen
         boolean exist = existByName(linkParam.getName());
 
         if (exist) {
-            throw new AlreadyExistsException("Link name " + linkParam.getName() + " has already existed").setErrorData(linkParam.getName());
+            throw new AlreadyExistsException("友情链接 " + linkParam.getName() + " 已存在").setErrorData(linkParam.getName());
         }
 
         return create(linkParam.convertTo());
@@ -115,13 +100,42 @@ public class LinkServiceImpl extends AbstractCrudService<Link, Integer> implemen
         return linkRepository.exists(Example.of(link));
     }
 
+    @Override
+    public List<String> listAllTeams() {
+        return linkRepository.findAllTeams();
+    }
+
+    @Override
+    public LinkDTO getByParse(String url) {
+        Assert.hasText(url, "Url must not be blank");
+        LinkDTO linkDTO = new LinkDTO();
+        linkDTO.setUrl(url);
+        try {
+            Document document = Jsoup.connect(url).get();
+
+            // Get html title.
+            linkDTO.setName(document.title());
+
+            // Get html metas.
+            Elements metas = document.head().select("meta");
+            metas.forEach(element -> {
+                if (META_DESCRIPTION.equalsIgnoreCase(element.attr(META_NAME))) {
+                    linkDTO.setDescription(element.attr(META_CONTENT));
+                }
+            });
+        } catch (IOException e) {
+            throw new BadRequestException("获取网站信息失败").setErrorData(e);
+        }
+        return linkDTO;
+    }
+
     @NonNull
-    private List<LinkOutputDTO> convertTo(@Nullable List<Link> links) {
+    private List<LinkDTO> convertTo(@Nullable List<Link> links) {
         if (CollectionUtils.isEmpty(links)) {
             return Collections.emptyList();
         }
 
-        return links.stream().map(link -> new LinkOutputDTO().<LinkOutputDTO>convertFrom(link))
+        return links.stream().map(link -> (LinkDTO) new LinkDTO().convertFrom(link))
                 .collect(Collectors.toList());
     }
 }

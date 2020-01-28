@@ -1,52 +1,60 @@
 package run.halo.app.model.params;
 
-import run.halo.app.model.dto.base.InputConverter;
-import run.halo.app.model.entity.Post;
-import run.halo.app.model.enums.PostCreateFrom;
-import run.halo.app.model.enums.PostStatus;
-import run.halo.app.utils.HaloUtils;
-import cn.hutool.crypto.digest.BCrypt;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.util.CollectionUtils;
+import run.halo.app.model.dto.base.InputConverter;
+import run.halo.app.model.entity.Post;
+import run.halo.app.model.entity.PostMeta;
+import run.halo.app.model.enums.PostCreateFrom;
+import run.halo.app.model.enums.PostStatus;
+import run.halo.app.utils.SlugUtils;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Size;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
  * Post param.
  *
  * @author johnniang
- * @date 3/21/19
+ * @author ryanwang
+ * @author guqing
+ * @date 2019-03-21
  */
 @Data
 public class PostParam implements InputConverter<Post> {
 
-    @NotBlank(message = "Post title must not be blank")
-    @Size(max = 100, message = "Length of post title must not be more than {max}")
+    @NotBlank(message = "文章标题不能为空")
+    @Size(max = 100, message = "文章标题的字符长度不能超过 {max}")
     private String title;
 
     private PostStatus status = PostStatus.DRAFT;
 
     private String url;
 
-    @NotBlank(message = "Post original content must not be blank")
     private String originalContent;
 
-    @Size(max = 255, message = "Length of post thumbnail must not be more than {max}")
+    private String summary;
+
+    @Size(max = 255, message = "文章缩略图链接的字符长度不能超过 {max}")
     private String thumbnail;
 
     private Boolean disallowComment = false;
 
-    @Size(max = 255, message = "Length of post password must not be more than {max}")
+    @Size(max = 255, message = "文章密码的字符长度不能超过 {max}")
     private String password;
 
-    @Size(max = 255, message = "Length of post template must not be more than {max}")
+    @Size(max = 255, message = "Length of template must not be more than {max}")
     private String template;
 
     @Min(value = 0, message = "Post top priority must not be less than {value}")
     private Integer topPriority = 0;
+
+    private Date createTime;
 
     private PostCreateFrom createFrom = PostCreateFrom.ADMIN;
 
@@ -54,44 +62,40 @@ public class PostParam implements InputConverter<Post> {
 
     private Set<Integer> categoryIds;
 
+    private Set<PostMetaParam> postMetas;
+
     @Override
     public Post convertTo() {
-        if (StringUtils.isBlank(url)) {
-            url = HaloUtils.normalizeUrl(title);
-        } else {
-            url = HaloUtils.normalizeUrl(url);
+        url = StringUtils.isBlank(url) ? SlugUtils.slug(title) : SlugUtils.slug(url);
+
+        if (null == thumbnail) {
+            thumbnail = "";
         }
 
-        url = HaloUtils.initializeUrlIfBlank(url);
-
-        Post post = InputConverter.super.convertTo();
-        // Crypt password
-        if (StringUtils.isNotBlank(password)) {
-            post.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
-        }
-
-        // Set post type to
-//        post.setType(PostType.POST);
-
-        return post;
+        return InputConverter.super.convertTo();
     }
 
     @Override
     public void update(Post post) {
-        if (StringUtils.isBlank(url)) {
-            url = HaloUtils.normalizeUrl(title);
-        } else {
-            url = HaloUtils.normalizeUrl(url);
-        }
+        url = StringUtils.isBlank(url) ? SlugUtils.slug(title) : SlugUtils.slug(url);
 
-        url = HaloUtils.initializeUrlIfBlank(url);
+        if (null == thumbnail) {
+            thumbnail = "";
+        }
 
         InputConverter.super.update(post);
+    }
 
-        // Crypt password
-        if (StringUtils.isNotBlank(password)) {
-            post.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
+    public Set<PostMeta> getPostMetas() {
+        Set<PostMeta> postMetaSet = new HashSet<>();
+        if (CollectionUtils.isEmpty(postMetas)) {
+            return postMetaSet;
         }
 
+        for (PostMetaParam postMetaParam : postMetas) {
+            PostMeta postMeta = postMetaParam.convertTo();
+            postMetaSet.add(postMeta);
+        }
+        return postMetaSet;
     }
 }

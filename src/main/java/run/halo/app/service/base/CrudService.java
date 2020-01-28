@@ -1,11 +1,12 @@
 package run.halo.app.service.base;
 
-import run.halo.app.exception.NotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
+import org.springframework.transaction.annotation.Transactional;
+import run.halo.app.exception.NotFoundException;
 
 import java.util.Collection;
 import java.util.List;
@@ -54,7 +55,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return List
      */
     @NonNull
-    List<DOMAIN> listAllByIds(@NonNull Collection<ID> ids);
+    List<DOMAIN> listAllByIds(@Nullable Collection<ID> ids);
 
     /**
      * List all by ids and sort
@@ -64,7 +65,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return List
      */
     @NonNull
-    List<DOMAIN> listAllByIds(@NonNull Collection<ID> ids, @NonNull Sort sort);
+    List<DOMAIN> listAllByIds(@Nullable Collection<ID> ids, @NonNull Sort sort);
 
     /**
      * Fetch by id
@@ -124,6 +125,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return DOMAIN
      */
     @NonNull
+    @Transactional
     DOMAIN create(@NonNull DOMAIN domain);
 
     /**
@@ -133,6 +135,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return List
      */
     @NonNull
+    @Transactional
     List<DOMAIN> createInBatch(@NonNull Collection<DOMAIN> domains);
 
     /**
@@ -142,7 +145,13 @@ public interface CrudService<DOMAIN, ID> {
      * @return DOMAIN
      */
     @NonNull
+    @Transactional
     DOMAIN update(@NonNull DOMAIN domain);
+
+    /**
+     * Flushes all pending changes to the database.
+     */
+    void flush();
 
     /**
      * Updates by domains
@@ -151,6 +160,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return List
      */
     @NonNull
+    @Transactional
     List<DOMAIN> updateInBatch(@NonNull Collection<DOMAIN> domains);
 
     /**
@@ -161,6 +171,7 @@ public interface CrudService<DOMAIN, ID> {
      * @throws NotFoundException If the specified id does not exist
      */
     @NonNull
+    @Transactional
     DOMAIN removeById(@NonNull ID id);
 
     /**
@@ -170,6 +181,7 @@ public interface CrudService<DOMAIN, ID> {
      * @return DOMAIN
      */
     @Nullable
+    @Transactional
     DOMAIN removeByIdOfNullable(@NonNull ID id);
 
     /**
@@ -177,6 +189,7 @@ public interface CrudService<DOMAIN, ID> {
      *
      * @param domain domain
      */
+    @Transactional
     void remove(@NonNull DOMAIN domain);
 
     /**
@@ -184,6 +197,7 @@ public interface CrudService<DOMAIN, ID> {
      *
      * @param ids ids
      */
+    @Transactional
     void removeInBatch(@NonNull Collection<ID> ids);
 
     /**
@@ -191,10 +205,12 @@ public interface CrudService<DOMAIN, ID> {
      *
      * @param domains domains
      */
+    @Transactional
     void removeAll(@NonNull Collection<DOMAIN> domains);
 
     /**
      * Remove all
      */
+    @Transactional
     void removeAll();
 }

@@ -1,9 +1,10 @@
 package run.halo.app.repository;
 
+import org.springframework.lang.NonNull;
 import run.halo.app.model.entity.Category;
 import run.halo.app.repository.base.BaseRepository;
-import org.springframework.lang.NonNull;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -36,4 +37,20 @@ public interface CategoryRepository extends BaseRepository<Category, Integer> {
      * @return Optional of Category
      */
     Optional<Category> getBySlugName(@NonNull String slugName);
+
+    /**
+     * Get category by name.
+     *
+     * @param name name
+     * @return Optional of Category
+     */
+    Optional<Category> getByName(@NonNull String name);
+
+    /**
+     * List categories by parent id.
+     *
+     * @param id parent id.
+     * @return list of category
+     */
+    List<Category> findByParentId(@NonNull Integer id);
 }

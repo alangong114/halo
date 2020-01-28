@@ -1,4 +1,8 @@
+<#if options.seo_spider_disabled!false>
 User-agent: *
-Disallow: /admin/
-Sitemap: ${options.blog_url!}/sitemap.xml
-Sitemap: ${options.blog_url!}/sitemap.html
+Disallow: /
+<#else>
+User-agent: *
+Sitemap: ${context!}/sitemap.xml
+Sitemap: ${context!}/sitemap.html
+</#if>

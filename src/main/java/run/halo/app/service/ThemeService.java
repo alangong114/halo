@@ -1,24 +1,119 @@
 package run.halo.app.service;
 
-import run.halo.app.model.support.Theme;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
+import org.springframework.web.multipart.MultipartFile;
+import run.halo.app.handler.theme.config.support.Group;
+import run.halo.app.handler.theme.config.support.ThemeProperty;
 import run.halo.app.model.support.ThemeFile;
-import run.halo.app.model.support.ThemeProperties;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
- * @author : RYAN0UP
- * @date : 2019/3/26
+ * Theme service interface.
+ *
+ * @author ryanwang
+ * @date 2019-03-26
  */
 public interface ThemeService {
 
     /**
+     * Theme property file name.
+     */
+    @Deprecated
+    String THEME_PROPERTY_FILE_NAME = "theme.yaml";
+
+    /**
+     * Theme property file name.
+     */
+    String[] THEME_PROPERTY_FILE_NAMES = {"theme.yaml", "theme.yml"};
+
+
+    /**
+     * Configuration file name.
+     */
+    String[] SETTINGS_NAMES = {"settings.yaml", "settings.yml"};
+
+    /**
+     * The type of file that can be modified.
+     */
+    String[] CAN_EDIT_SUFFIX = {".ftl", ".css", ".js", ".yaml", ".yml", ".properties"};
+
+    /**
+     * These file names cannot be displayed.
+     */
+    String[] FILTER_FILES = {".git", ".DS_Store", "theme.yaml", "theme.yml", "settings.yaml", "settings.yml"};
+
+    /**
+     * Theme folder location.
+     */
+    String THEME_FOLDER = "templates/themes";
+
+    /**
+     * Theme screenshots name.
+     */
+    String THEME_SCREENSHOTS_NAME = "screenshot";
+
+
+    /**
+     * Render template.
+     */
+    String RENDER_TEMPLATE = "themes/%s/%s";
+
+    /**
+     * Theme cache key.
+     */
+    String THEMES_CACHE_KEY = "themes";
+
+    /**
+     * Custom sheet template prefix.
+     */
+    String CUSTOM_SHEET_PREFIX = "sheet_";
+
+    /**
+     * Custom post template prefix.
+     */
+    String CUSTOM_POST_PREFIX = "post_";
+
+    /**
+     * Theme provider remote name.
+     */
+    String THEME_PROVIDER_REMOTE_NAME = "theme-provider";
+
+    /**
+     * Default remote branch name.
+     */
+    String DEFAULT_REMOTE_BRANCH = "master";
+
+    /**
+     * Get theme property by theme id.
+     *
+     * @param themeId must not be blank
+     * @return theme property
+     */
+    @NonNull
+    ThemeProperty getThemeOfNonNullBy(@NonNull String themeId);
+
+    /**
+     * Get theme property by theme id.
+     *
+     * @param themeId theme id
+     * @return a optional theme property
+     */
+    @NonNull
+    Optional<ThemeProperty> getThemeBy(@Nullable String themeId);
+
+    /**
      * Gets all themes
      *
-     * @return list of themes
+     * @return set of themes
      */
-    List<Theme> getThemes();
+    @NonNull
+    Set<ThemeProperty> getThemes();
 
     /**
      * Lists theme folder by absolute path.
@@ -26,68 +121,189 @@ public interface ThemeService {
      * @param absolutePath absolutePath
      * @return List<ThemeFile>
      */
-    List<ThemeFile> listThemeFolder(String absolutePath);
+    List<ThemeFile> listThemeFolder(@NonNull String absolutePath);
 
     /**
      * Lists theme folder by theme name.
      *
-     * @param theme theme
+     * @param themeId theme id
      * @return List<ThemeFile>
      */
-    List<ThemeFile> listThemeFolderBy(String theme);
+    List<ThemeFile> listThemeFolderBy(@NonNull String themeId);
 
     /**
-     * Gets custom template, such as page_xxx.ftl, and xxx will be template name
+     * Lists a set of custom template, such as sheet_xxx.ftl, and xxx will be template name
      *
-     * @param theme theme name
-     * @return List
+     * @param themeId theme id must not be blank
+     * @return a set of templates
      */
-    List<String> getCustomTpl(String theme);
+    @Deprecated
+    Set<String> listCustomTemplates(@NonNull String themeId);
+
+    /**
+     * Lists a set of custom template, such as sheet_xxx.ftl/post_xxx.ftl, and xxx will be template name
+     *
+     * @param themeId theme id must not be blank
+     * @param prefix  post_ or sheet_
+     * @return a set of templates
+     */
+    Set<String> listCustomTemplates(@NonNull String themeId, @NonNull String prefix);
 
     /**
      * Judging whether template exists under the specified theme
      *
-     * @param template template
+     * @param template template must not be blank
      * @return boolean
      */
-    boolean isTemplateExist(String template);
+    boolean templateExists(@Nullable String template);
 
     /**
-     * Judging whether theme exists under template path
+     * Checks whether theme exists under template path
      *
-     * @param theme theme name
+     * @param themeId theme id
      * @return boolean
      */
-    boolean isThemeExist(String theme);
+    boolean themeExists(@Nullable String themeId);
 
     /**
      * Gets theme base path.
      *
-     * @return File
+     * @return theme base path
      */
-    File getThemeBasePath();
+    Path getBasePath();
 
     /**
-     * Get theme Properties.
-     *
-     * @param path path
-     * @return ThemeProperties
-     */
-    ThemeProperties getProperties(File path);
-
-    /**
-     * Get template content by template absolute path.
+     * Gets template content by template absolute path.
      *
      * @param absolutePath absolute path
      * @return template content
      */
-    String getTemplateContent(String absolutePath);
+    String getTemplateContent(@NonNull String absolutePath);
 
     /**
-     * Save template content by template absolute path.
+     * Gets template content by template absolute path and themeId.
+     *
+     * @param themeId      themeId
+     * @param absolutePath absolute path
+     * @return template content
+     */
+    String getTemplateContent(@NonNull String themeId, @NonNull String absolutePath);
+
+    /**
+     * Saves template content by template absolute path.
      *
      * @param absolutePath absolute path
      * @param content      new content
      */
-    void saveTemplateContent(String absolutePath, String content);
+    void saveTemplateContent(@NonNull String absolutePath, @NonNull String content);
+
+    /**
+     * Saves template content by template absolute path and themeId.
+     *
+     * @param themeId      themeId
+     * @param absolutePath absolute path
+     * @param content      new content
+     */
+    void saveTemplateContent(@NonNull String themeId, @NonNull String absolutePath, @NonNull String content);
+
+    /**
+     * Deletes a theme by key.
+     *
+     * @param themeId theme id must not be blank
+     */
+    void deleteTheme(@NonNull String themeId);
+
+    /**
+     * Fetches theme configuration.
+     *
+     * @param themeId must not be blank
+     * @return theme configuration
+     */
+    @NonNull
+    List<Group> fetchConfig(@NonNull String themeId);
+
+    /**
+     * Renders a theme page.
+     *
+     * @param pageName must not be blank
+     * @return full path of the theme page
+     */
+    @NonNull
+    String render(@NonNull String pageName);
+
+    /**
+     * Gets current theme id.
+     *
+     * @return current theme id
+     */
+    @NonNull
+    String getActivatedThemeId();
+
+    /**
+     * Gets activated theme property.
+     *
+     * @return activated theme property
+     */
+    @NonNull
+    ThemeProperty getActivatedTheme();
+
+    /**
+     * Actives a theme.
+     *
+     * @param themeId theme id must not be blank
+     * @return theme property
+     */
+    @NonNull
+    ThemeProperty activateTheme(@NonNull String themeId);
+
+    /**
+     * Upload theme.
+     *
+     * @param file multipart file must not be null
+     * @return theme info
+     */
+    @NonNull
+    ThemeProperty upload(@NonNull MultipartFile file);
+
+    /**
+     * Adds a new theme.
+     *
+     * @param themeTmpPath theme temporary path must not be null
+     * @return theme property
+     * @throws IOException IOException
+     */
+    @NonNull
+    ThemeProperty add(@NonNull Path themeTmpPath) throws IOException;
+
+    /**
+     * Fetches a new theme.
+     *
+     * @param uri theme remote uri must not be null
+     * @return theme property
+     */
+    @NonNull
+    ThemeProperty fetch(@NonNull String uri);
+
+    /**
+     * Reloads themes
+     */
+    void reload();
+
+    /**
+     * Updates theme by theme id.
+     *
+     * @param themeId theme id must not be blank
+     * @return theme property
+     */
+    @NonNull
+    ThemeProperty update(@NonNull String themeId);
+
+    /**
+     * Updates theme by theme id.
+     *
+     * @param themeId theme id must not be blank
+     * @param file    multipart file must not be null
+     * @return theme info
+     */
+    ThemeProperty update(@NonNull String themeId, @NonNull MultipartFile file);
 }

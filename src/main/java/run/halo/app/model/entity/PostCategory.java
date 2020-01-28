@@ -2,8 +2,6 @@ package run.halo.app.model.entity;
 
 import lombok.Data;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
 import java.util.Objects;
@@ -15,8 +13,6 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "post_categories")
-@SQLDelete(sql = "update post_categories set deleted = true where id = ?")
-@Where(clause = "deleted = false")
 @Data
 @ToString(callSuper = true)
 public class PostCategory extends BaseEntity {
@@ -46,8 +42,12 @@ public class PostCategory extends BaseEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         PostCategory that = (PostCategory) o;
         return categoryId.equals(that.categoryId) &&
                 postId.equals(that.postId);

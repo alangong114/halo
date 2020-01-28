@@ -8,26 +8,26 @@
      xmlns:slash="http://purl.org/rss/1.0/modules/slash/">
     <channel>
         <title>${options.blog_title!}</title>
-        <atom:link href="${options.blog_url!}/atom.xml" rel="self" type="application/rss+xml"/>
-        <link>${options.blog_url!}</link>
+        <atom:link href="${context!}/atom.xml" rel="self" type="application/rss+xml"/>
+        <link>${context!}</link>
         <description>${user.description!}</description>
         <language>zh-CN</language>
         <sy:updatePeriod>hourly</sy:updatePeriod>
         <sy:updateFrequency>1</sy:updateFrequency>
-        <generator>https://github.com/halo-dev/halo</generator>
+        <generator>https://halo.run</generator>
     </channel>
     <#if posts?? && posts?size gt 0>
         <#list posts as post>
             <item>
-                <title>${post.title!}</title>
-                <link>${options.blog_url!}/archives/${post.url!}</link>
-                <comments>${options.blog_url!}/archives/${post.url!}#comments</comments>
-                <pubDate>${post.createTime}</pubDate>
-                <dc:creator><![CDATA[${user.nickName!}]]></dc:creator>
+                <title><![CDATA[${post.title!}]]></title>
+                <link>${context!}/archives/${post.url!}</link>
+                <comments>${context!}/archives/${post.url!}#comments</comments>
+                <pubDate>${post.createTime!}</pubDate>
+                <dc:creator><![CDATA[${user.nickname!}]]></dc:creator>
 
                 <#if post.categories?? && post.categories?size gt 0>
-                    <#list post.categories as cate>
-                        <category><![CDATA[${cate.name!}]]></category>
+                    <#list post.categories as category>
+                        <category><![CDATA[${category.name!}]]></category>
                     </#list>
                 </#if>
                 <description>
@@ -37,10 +37,13 @@
                 </description>
                 <content:encoded>
                     <![CDATA[
-                        ${post.formatContent!}
+                        <#if (options.rss_content_type!'full') == 'full'>
+                            ${post.formatContent!}
+                        <#else>
+                            ${post.summary!}
+                        </#if>
                     ]]>
                 </content:encoded>
-                <slash:comments>${post.comments?size}</slash:comments>
             </item>
         </#list>
     </#if>

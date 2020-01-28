@@ -3,8 +3,8 @@ package run.halo.app.model.enums;
 /**
  * Attach origin.
  *
- * @author : RYAN0UP
- * @date : 2019-03-12
+ * @author ryanwang
+ * @date 2019-03-12
  */
 public enum AttachmentType implements ValueEnum<Integer> {
 
@@ -16,17 +16,32 @@ public enum AttachmentType implements ValueEnum<Integer> {
     /**
      * 又拍云
      */
-    UPYUN(1),
+    UPOSS(1),
 
     /**
      * 七牛云
      */
-    QNYUN(2),
+    QINIUOSS(2),
 
     /**
      * sm.ms
      */
-    SMMS(3);
+    SMMS(3),
+
+    /**
+     * 阿里云
+     */
+    ALIOSS(4),
+
+    /**
+     * 百度云
+     */
+    BAIDUBOS(5),
+
+    /**
+     * 腾讯云
+     */
+    TENCENTCOS(6);
 
     private Integer value;
 

@@ -1,9 +1,5 @@
 package run.halo.app.service.impl;
 
-import run.halo.app.exception.ServiceException;
-import run.halo.app.model.properties.EmailProperties;
-import run.halo.app.service.MailService;
-import run.halo.app.service.OptionService;
 import cn.hutool.core.text.StrBuilder;
 import freemarker.template.Template;
 import io.github.biezhi.ome.OhMyEmail;
@@ -11,7 +7,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.freemarker.FreeMarkerTemplateUtils;
 import org.springframework.web.servlet.view.freemarker.FreeMarkerConfigurer;
-import run.halo.app.exception.ServiceException;
+import run.halo.app.exception.EmailException;
+import run.halo.app.model.properties.EmailProperties;
+import run.halo.app.service.MailService;
+import run.halo.app.service.OptionService;
 
 import java.io.File;
 import java.util.Map;
@@ -20,8 +19,8 @@ import java.util.Properties;
 /**
  * Mail service implementation.
  *
- * @author : RYAN0UP
- * @date : 2019-03-17
+ * @author ryanwang
+ * @date 2019-03-17
  */
 @Slf4j
 @Service
@@ -31,39 +30,18 @@ public class MailServiceImpl implements MailService {
 
     private final OptionService optionService;
 
-    private boolean loaded = false;
-
     public MailServiceImpl(FreeMarkerConfigurer freeMarker,
                            OptionService optionService) {
         this.freeMarker = freeMarker;
         this.optionService = optionService;
 
-        try {
-            reloadMailConfig();
-        } catch (Exception e) {
-            log.warn("You have to configure the email settings correctly before using email service");
-        }
     }
 
-    @Override
-    public void reloadMailConfig() {
-        loaded = false;
-        // Get default properties
-        loadConfig();
-    }
-
-    /**
-     * Sends a simple email
-     *
-     * @param to      recipient
-     * @param subject subject
-     * @param content content
-     */
     @Override
     public void sendMail(String to, String subject, String content) {
         loadConfig();
 
-        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME);
+        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME).toString();
 
         try {
             OhMyEmail.subject(subject)
@@ -74,23 +52,15 @@ public class MailServiceImpl implements MailService {
         } catch (Exception e) {
             log.debug("Email properties: to username: [{}], from username: [{}], subject: [{}], content: [{}]",
                     to, fromUsername, subject, content);
-            throw new ServiceException("Failed to send email to " + to, e);
+            throw new EmailException("发送邮件到 " + to + " 失败，请检查 SMTP 服务配置是否正确", e);
         }
     }
 
-    /**
-     * Sends template mail
-     *
-     * @param to           recipient
-     * @param subject      subject
-     * @param content      content
-     * @param templateName template name
-     */
     @Override
     public void sendTemplateMail(String to, String subject, Map<String, Object> content, String templateName) {
         loadConfig();
 
-        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME);
+        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME).toString();
 
         try {
             StrBuilder text = new StrBuilder();
@@ -104,26 +74,18 @@ public class MailServiceImpl implements MailService {
         } catch (Exception e) {
             log.debug("Email properties: to username: [{}], from username: [{}], subject: [{}], template name: [{}], content: [{}]",
                     to, fromUsername, subject, templateName, content);
-            throw new ServiceException("Failed to send template email to " + to, e).setErrorData(templateName);
+            throw new EmailException("发送模板邮件到 " + to + " 失败，请检查 SMTP 服务配置是否正确", e);
         }
     }
 
-    /**
-     * Sends mail with attachments
-     *
-     * @param to             recipient
-     * @param subject        subject
-     * @param content        content
-     * @param templateName   template name
-     * @param attachFilename attachment path
-     */
     @Override
     public void sendAttachMail(String to, String subject, Map<String, Object> content, String templateName, String attachFilename) {
         loadConfig();
 
-        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME);
+        String fromUsername = optionService.getByPropertyOfNonNull(EmailProperties.FROM_NAME).toString();
 
         File file = new File(attachFilename);
+
         try {
             Template template = freeMarker.getConfiguration().getTemplate(templateName);
             OhMyEmail.subject(subject)
@@ -135,28 +97,26 @@ public class MailServiceImpl implements MailService {
         } catch (Exception e) {
             log.debug("Email properties: to username: [{}], from username: [{}], subject: [{}], template name: [{}], attachment: [{}], content: [{}]",
                     to, fromUsername, subject, templateName, attachFilename, content);
-            throw new ServiceException("Failed to send attachment email to " + to, e);
+            throw new EmailException("发送附件邮件到 " + to + " 失败，请检查 SMTP 服务配置是否正确", e);
         }
     }
 
     /**
-     * Load email config.
+     * Loads email config.
      */
-    private synchronized void loadConfig() {
-        if (loaded = true) {
-            return;
-        }
-
+    private void loadConfig() {
         // Get default properties
         Properties defaultProperties = OhMyEmail.defaultConfig(log.isDebugEnabled());
+
         // Set smtp host
-        defaultProperties.setProperty("mail.smtp.host", optionService.getByPropertyOfNonNull(EmailProperties.HOST));
+        defaultProperties.setProperty("mail.smtp.host", optionService.getByPropertyOfNonNull(EmailProperties.HOST).toString());
+        defaultProperties.setProperty("mail.transport.protocol", optionService.getByPropertyOrDefault(EmailProperties.PROTOCOL, String.class, EmailProperties.PROTOCOL.defaultValue()));
+        defaultProperties.setProperty("mail.smtp.port", optionService.getByPropertyOrDefault(EmailProperties.SSL_PORT, String.class, EmailProperties.SSL_PORT.defaultValue()));
+
         // Config email
         OhMyEmail.config(defaultProperties,
-                optionService.getByPropertyOfNonNull(EmailProperties.USERNAME),
-                optionService.getByPropertyOfNonNull(EmailProperties.PASSWORD));
-
-        // Set config loaded with true
-        loaded = true;
+                optionService.getByPropertyOfNonNull(EmailProperties.USERNAME).toString(),
+                optionService.getByPropertyOfNonNull(EmailProperties.PASSWORD).toString());
     }
+
 }

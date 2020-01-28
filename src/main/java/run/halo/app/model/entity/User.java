@@ -1,11 +1,8 @@
 package run.halo.app.model.entity;
 
-import run.halo.app.utils.DateUtils;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
 import run.halo.app.utils.DateUtils;
 
 import javax.persistence.*;
@@ -14,14 +11,12 @@ import java.util.Date;
 /**
  * User entity
  *
- * @author : RYAN0UP
- * @date : 2019-03-12
+ * @author ryanwang
+ * @date 2019-03-12
  */
 @Data
 @Entity
 @Table(name = "users")
-@SQLDelete(sql = "update users set deleted = true where id = ?")
-@Where(clause = "deleted = false")
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class User extends BaseEntity {

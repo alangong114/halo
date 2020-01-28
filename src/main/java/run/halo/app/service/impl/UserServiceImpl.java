@@ -1,42 +1,40 @@
 package run.halo.app.service.impl;
 
-import run.halo.app.cache.StringCacheStore;
-import run.halo.app.exception.BadRequestException;
-import run.halo.app.exception.NotFoundException;
-import run.halo.app.model.entity.User;
-import run.halo.app.model.params.UserParam;
-import run.halo.app.repository.UserRepository;
-import run.halo.app.security.context.SecurityContextHolder;
-import run.halo.app.security.filter.AdminAuthenticationFilter;
-import run.halo.app.security.support.UserDetail;
-import run.halo.app.service.UserService;
-import run.halo.app.service.base.AbstractCrudService;
-import run.halo.app.utils.DateUtils;
-import run.halo.app.utils.HaloUtils;
-import cn.hutool.core.lang.Validator;
 import cn.hutool.crypto.digest.BCrypt;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
+import run.halo.app.cache.StringCacheStore;
+import run.halo.app.cache.lock.CacheLock;
+import run.halo.app.event.logger.LogEvent;
+import run.halo.app.event.user.UserUpdatedEvent;
 import run.halo.app.exception.BadRequestException;
+import run.halo.app.exception.ForbiddenException;
 import run.halo.app.exception.NotFoundException;
+import run.halo.app.exception.ServiceException;
+import run.halo.app.model.entity.User;
+import run.halo.app.model.enums.LogType;
+import run.halo.app.model.params.UserParam;
 import run.halo.app.repository.UserRepository;
-import run.halo.app.security.context.SecurityContextHolder;
-import run.halo.app.security.support.UserDetail;
+import run.halo.app.service.UserService;
 import run.halo.app.service.base.AbstractCrudService;
+import run.halo.app.utils.DateUtils;
+import run.halo.app.utils.HaloUtils;
 
-import javax.servlet.http.HttpSession;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * UserService implementation class
+ * UserService implementation class.
  *
- * @author : RYAN0UP
- * @date : 2019-03-14
+ * @author ryanwang
+ * @author johnniang
+ * @date 2019-03-14
  */
 @Service
 public class UserServiceImpl extends AbstractCrudService<User, Integer> implements UserService {
@@ -45,11 +43,15 @@ public class UserServiceImpl extends AbstractCrudService<User, Integer> implemen
 
     private final StringCacheStore stringCacheStore;
 
+    private final ApplicationEventPublisher eventPublisher;
+
     public UserServiceImpl(UserRepository userRepository,
-                           StringCacheStore stringCacheStore) {
+                           StringCacheStore stringCacheStore,
+                           ApplicationEventPublisher eventPublisher) {
         super(userRepository);
         this.userRepository = userRepository;
         this.stringCacheStore = stringCacheStore;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -73,85 +75,17 @@ public class UserServiceImpl extends AbstractCrudService<User, Integer> implemen
 
     @Override
     public User getByUsernameOfNonNull(String username) {
-        return getByUsername(username).orElseThrow(() -> new NotFoundException("The username dose not exist").setErrorData(username));
+        return getByUsername(username).orElseThrow(() -> new NotFoundException("The username does not exist").setErrorData(username));
     }
 
-    /**
-     * Gets user by email.
-     *
-     * @param email email must not be blank
-     * @return an optional user
-     */
     @Override
     public Optional<User> getByEmail(String email) {
         return userRepository.findByEmail(email);
     }
 
-    /**
-     * Gets non null user by email.
-     *
-     * @param email email
-     * @return user info
-     * @throws NotFoundException throws when the username does not exist
-     */
     @Override
     public User getByEmailOfNonNull(String email) {
-        return getByEmail(email).orElseThrow(() -> new NotFoundException("The email dose not exist").setErrorData(email));
-    }
-
-    @Override
-    public User login(String key, String password, HttpSession httpSession) {
-        Assert.hasText(key, "Username or email must not be blank");
-        Assert.hasText(password, "Password must not be blank");
-        Assert.notNull(httpSession, "Http session must not be null");
-
-        // Check login status
-        if (SecurityContextHolder.getContext().isAuthenticated()) {
-            throw new BadRequestException("You have logged in already, no need to log in again");
-        }
-
-        // Ger user by username
-        User user = Validator.isEmail(key) ? getByEmailOfNonNull(key) : getByUsernameOfNonNull(key);
-
-        Date now = DateUtils.now();
-
-        // Check expiration
-        if (user.getExpireTime() != null && user.getExpireTime().after(now)) {
-            long seconds = TimeUnit.MILLISECONDS.toSeconds(user.getExpireTime().getTime() - now.getTime());
-            // If expired
-            throw new BadRequestException("You have been temporarily disabled，please try again " + HaloUtils.timeFormat(seconds) + " later").setErrorData(seconds);
-        }
-
-        if (!BCrypt.checkpw(password, user.getPassword())) {
-            // If the password is mismatch
-            // Add login failure count
-            Integer loginFailureCount = stringCacheStore.get(LOGIN_FAILURE_COUNT_KEY).map(Integer::valueOf).orElse(0);
-
-            if (loginFailureCount >= MAX_LOGIN_TRY - 1) {
-                // Set expiration
-                user.setExpireTime(org.apache.commons.lang3.time.DateUtils.addMinutes(now, LOCK_MINUTES));
-                // Update user
-                update(user);
-            }
-
-            loginFailureCount++;
-
-            stringCacheStore.put(LOGIN_FAILURE_COUNT_KEY, loginFailureCount.toString(), LOCK_MINUTES, TimeUnit.MINUTES);
-
-            int remainder = MAX_LOGIN_TRY - loginFailureCount;
-
-            String errorMessage = String.format("Username or password incorrect, you%shave %s", remainder <= 0 ? "" : " still ", HaloUtils.pluralize(remainder, "chance", "chances"));
-
-            throw new BadRequestException(errorMessage);
-        }
-
-        // Clear the login failure count cache
-        stringCacheStore.delete(LOGIN_FAILURE_COUNT_KEY);
-
-        // Set session
-        httpSession.setAttribute(AdminAuthenticationFilter.ADMIN_SESSION_KEY, new UserDetail(user));
-
-        return user;
+        return getByEmail(email).orElseThrow(() -> new NotFoundException("The email does not exist").setErrorData(email));
     }
 
     @Override
@@ -161,7 +95,7 @@ public class UserServiceImpl extends AbstractCrudService<User, Integer> implemen
         Assert.notNull(userId, "User id must not be blank");
 
         if (oldPassword.equals(newPassword)) {
-            throw new BadRequestException("There is nothing changed because new password is equal to old password");
+            throw new BadRequestException("新密码和旧密码不能相同");
         }
 
         // Get the user
@@ -169,33 +103,88 @@ public class UserServiceImpl extends AbstractCrudService<User, Integer> implemen
 
         // Check the user old password
         if (!BCrypt.checkpw(oldPassword, user.getPassword())) {
-            throw new BadRequestException("Old password is mismatch").setErrorData(oldPassword);
+            throw new BadRequestException("旧密码错误").setErrorData(oldPassword);
         }
 
         // Set new password
-        setPassword(newPassword, user);
+        setPassword(user, newPassword);
 
         // Update this user
-        return update(user);
+        User updatedUser = update(user);
+
+        // Log it
+        eventPublisher.publishEvent(new LogEvent(this, updatedUser.getId().toString(), LogType.PASSWORD_UPDATED, HaloUtils.desensitize(oldPassword, 2, 1)));
+
+        return updatedUser;
     }
 
     @Override
-    public User createBy(UserParam userParam, String password) {
+    public User createBy(UserParam userParam) {
         Assert.notNull(userParam, "User param must not be null");
-        Assert.hasText(password, "Password must not be blank");
 
         User user = userParam.convertTo();
 
-        setPassword(password, user);
+        setPassword(user, userParam.getPassword());
 
         return create(user);
     }
 
-    private void setPassword(@NonNull String plainPassword, @NonNull User user) {
-        Assert.hasText(plainPassword, "Plain password must not be blank");
+    @Override
+    public void mustNotExpire(User user) {
         Assert.notNull(user, "User must not be null");
+
+        Date now = DateUtils.now();
+        if (user.getExpireTime() != null && user.getExpireTime().after(now)) {
+            long seconds = TimeUnit.MILLISECONDS.toSeconds(user.getExpireTime().getTime() - now.getTime());
+            // If expired
+            throw new ForbiddenException("账号已被停用，请 " + HaloUtils.timeFormat(seconds) + " 后重试").setErrorData(seconds);
+        }
+    }
+
+    @Override
+    public boolean passwordMatch(User user, String plainPassword) {
+        Assert.notNull(user, "User must not be null");
+
+        return !StringUtils.isBlank(plainPassword) && BCrypt.checkpw(plainPassword, user.getPassword());
+    }
+
+    @Override
+    @CacheLock
+    public User create(User user) {
+        // Check user
+        if (count() != 0) {
+            throw new BadRequestException("当前博客已有用户");
+        }
+
+        User createdUser = super.create(user);
+
+        eventPublisher.publishEvent(new UserUpdatedEvent(this, createdUser.getId()));
+
+        return createdUser;
+    }
+
+    @Override
+    public User update(User user) {
+        User updatedUser = super.update(user);
+
+        // Log it
+        eventPublisher.publishEvent(new LogEvent(this, user.getId().toString(), LogType.PROFILE_UPDATED, user.getUsername()));
+        eventPublisher.publishEvent(new UserUpdatedEvent(this, user.getId()));
+
+        return updatedUser;
+    }
+
+    @Override
+    public void setPassword(@NonNull User user, @NonNull String plainPassword) {
+        Assert.notNull(user, "User must not be null");
+        Assert.hasText(plainPassword, "Plain password must not be blank");
 
         user.setPassword(BCrypt.hashpw(plainPassword, BCrypt.gensalt()));
     }
 
+    @Override
+    public boolean verifyUser(String username, String password) {
+        User user = getCurrentUser().orElseThrow(() -> new ServiceException("未查询到博主信息"));
+        return user.getUsername().equals(username) && user.getEmail().equals(password);
+    }
 }

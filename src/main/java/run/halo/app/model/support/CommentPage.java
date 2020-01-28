@@ -1,18 +1,22 @@
 package run.halo.app.model.support;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 /**
- * Comment page implementation.
+ * PostComment page implementation.
  *
  * @author johnniang
  * @date 3/25/19
  */
-@Data
+@Getter
+@ToString(callSuper = true)
+@EqualsAndHashCode(callSuper = true)
 public class CommentPage<T> extends PageImpl<T> {
 
     /**
