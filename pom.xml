@@ -45,6 +45,7 @@
     <thumbnailator.version>0.4.8</thumbnailator.version>
     <commonmark.version>0.12.1</commonmark.version>
     <commons-collections.version>3.2.2</commons-collections.version>
+    <fastjson>1.2.62</fastjson>
   </properties>
 
   <dependencies>
@@ -202,6 +203,14 @@
       <artifactId>commons-collections</artifactId>
       <version>${commons-collections.version}</version>
     </dependency>
+
+    <!--  fastjson  -->
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>${fastjson}</version>
+    </dependency>
+
 
   </dependencies>
 

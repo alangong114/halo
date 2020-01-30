@@ -13,6 +13,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.StrUtil;
 import com.UpYun;
+import com.alibaba.fastjson.JSON;
 import com.qiniu.common.QiniuException;
 import com.qiniu.common.Zone;
 import com.qiniu.http.Response;
@@ -295,7 +296,7 @@ public class AttachmentServiceImpl extends AbstractCrudService<Attachment, Long>
         final Response response = uploadManager
             .put(file.getInputStream(), key, upToken, null, null);
         //解析上传成功的结果
-        putSet =Json.decode(response.bodyString(), QiNiuPutSet.class);
+        putSet = JSON.parseObject(response.bodyString(), QiNiuPutSet.class);
       } catch (QiniuException e) {
         final Response r = e.response;
         log.error(e.getMessage(), e);
