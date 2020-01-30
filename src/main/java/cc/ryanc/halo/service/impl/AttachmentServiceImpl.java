@@ -13,8 +13,6 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.StrUtil;
 import com.UpYun;
-import com.google.gson.Gson;
-import com.google.gson.JsonSyntaxException;
 import com.qiniu.common.QiniuException;
 import com.qiniu.common.Zone;
 import com.qiniu.http.Response;
@@ -23,6 +21,7 @@ import com.qiniu.storage.Configuration;
 import com.qiniu.storage.UploadManager;
 import com.qiniu.storage.persistent.FileRecorder;
 import com.qiniu.util.Auth;
+import com.qiniu.util.Json;
 import com.qiniu.util.StringMap;
 import com.upyun.UpException;
 import lombok.extern.slf4j.Slf4j;
@@ -296,7 +295,7 @@ public class AttachmentServiceImpl extends AbstractCrudService<Attachment, Long>
         final Response response = uploadManager
             .put(file.getInputStream(), key, upToken, null, null);
         //解析上传成功的结果
-        putSet = new Gson().fromJson(response.bodyString(), QiNiuPutSet.class);
+        putSet =Json.decode(response.bodyString(), QiNiuPutSet.class);
       } catch (QiniuException e) {
         final Response r = e.response;
         log.error(e.getMessage(), e);
@@ -306,11 +305,7 @@ public class AttachmentServiceImpl extends AbstractCrudService<Attachment, Long>
           //ignore
         }
         return resultMap;
-      } catch (JsonSyntaxException e) {
-        log.error(e.getMessage(), e);
-        return resultMap;
-
-      } catch (IOException e) {
+      }catch (IOException e) {
         log.error(e.getMessage(), e);
         return resultMap;
       }
